@@ -1,0 +1,21 @@
+# Arquivos compilados do Java
+*.class
+
+# Pastas de build do Eclipse
+/bin/
+
+# Arquivos e pastas de configuração do Eclipse
+.settings/
+.project
+.classpath
+.metadata/
+
+# Arquivos de log
+*.log
+
+# Pacotes e artefatos (caso você gere JARs no futuro)
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz

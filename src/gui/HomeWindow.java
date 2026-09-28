@@ -18,6 +18,8 @@ import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.JButton;
 
+import service.*;
+
 public class HomeWindow extends JFrame {
 
 	private static final long serialVersionUID = 1L;
@@ -27,14 +29,18 @@ public class HomeWindow extends JFrame {
 	private JButton btn_delete;
 	private JButton btn_exit;
 	private JButton btn_update;
-	
+	//SERVICES
+	private ServerService serverService;
+	//GUI's
+	private MainWindow mainWindow;
 	
 
 	/**
 	 * Create the frame.
 	 */
-	public HomeWindow() {
-		setTitle("Servidor");
+	public HomeWindow(int port) {
+
+		this.serverService = new ServerService(port, this);
 		
 		initComponents();
 		
@@ -44,6 +50,7 @@ public class HomeWindow extends JFrame {
 		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 562, 406);
+		setTitle("Servidor");
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);

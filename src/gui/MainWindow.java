@@ -10,6 +10,7 @@ import javax.swing.JLabel;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import service.*;
 
 public class MainWindow extends JFrame {
 
@@ -17,6 +18,7 @@ public class MainWindow extends JFrame {
 	private JPanel contentPane;
 	private JTextField textField;
 	private HomeWindow home;
+	private ServerService serverService;
 
 	/**
 	 * Launch the application.
@@ -39,14 +41,15 @@ public class MainWindow extends JFrame {
 	 */
 
 	public MainWindow() {
-		
+
 		initComponents();
 
 	}
+
 	
-	public void abrirHome() {
+	public void abrirHome(int port) {
 		
-		this.home = new HomeWindow();
+		this.home = new HomeWindow(port);
 		home.setVisible(true);
 		this.setVisible(false);
 		
@@ -72,7 +75,7 @@ public class MainWindow extends JFrame {
 		JButton btn_init = new JButton("Iniciar");
 		btn_init.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				abrirHome();
+				abrirHome(Integer.parseInt(textField.getText()));
 			}
 		});
 		btn_init.setBounds(174, 140, 89, 23);

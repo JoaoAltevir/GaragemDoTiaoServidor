@@ -12,19 +12,12 @@ import gui.HomeWindow;
 
 public class UserService {
 
-    private Socket userSocket;
-    private HomeWindow homeWindow;
-
-
-
-    public void register(JsonObject req){
+    public JsonObject register(JsonObject req){
         Connection conn = BancoDados.conectar();
         UserDAO bancoUser = new UserDAO();
-        try (
-            Socket client = userSocket;
-            PrintWriter out = new PrintWriter(client.getOutputStream(), true)
-        ){
-            JsonObject res = new JsonObject();
+        JsonObject res = new JsonObject();
+
+        try {
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
             String name = dataObj.get("name").getAsString();
@@ -37,19 +30,23 @@ public class UserService {
 
             bancoUser.register(name, password, username);
 
-            res.addProperty("StatusCode", "200");
-            res.addProperty("Message", "Usuário criado com sucesso!");
+            res.addProperty("statusCode", "200");
+            res.addProperty("message", "Usuário criado com sucesso!");
 
-            out.println(gson.toGson(res));
+            return res;
 
         } catch (Exception e) {
-            
+
+            res.addProperty("statusCode", "400");
+            res.addProperty("message", "");
+
         }finally{
+            
             BancoDados.desconectar();
         }
     }
-    public void login(JsonObject req){}
-    public void logout(){}
-    public void getUser(JsonObject req){}
+    public JsonObject login(JsonObject req){}
+    public JsonObject logout(){}
+    public JsonObject getUser(JsonObject req){}
 
 }

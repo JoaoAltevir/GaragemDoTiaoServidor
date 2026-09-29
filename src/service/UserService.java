@@ -45,8 +45,12 @@ public class UserService {
             BancoDados.desconectar();
         }
     }
-    public JsonObject login(JsonObject req){}
+    public JsonObject login(JsonObject req){
+
+        //TODO validar se usuário existe no banco e gerar token com UUID e gerar registro na tabela de UserSession
+
+    }
     public JsonObject logout(){}
     public JsonObject getUser(JsonObject req){}
-
+    
 }

@@ -7,6 +7,7 @@ import java.sql.*;
 import entities.User;
 import dao.UserDAO;
 import java.util.UUID;
+import java.util.regex.PatternSyntaxException;
 
 
 
@@ -25,16 +26,16 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
-            User userExist = bancoUser.getUserByUsername(username);
+            
+            boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
+            
+            User userExist = bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
             if(userExist != null){
                 res.addProperty("statusCode", "400");
                 res.addProperty("message", "Usuário já existe!");
                 return res;
             }
-            
-            boolean isValid = registerValidation(name, password, username);
-
             if(!isValid){
                 res.addProperty("statusCode", "400");
                 res.addProperty("message", "Campos inválidos!");
@@ -55,6 +56,19 @@ public class UserService {
 
             return res;
 
+        } catch (IllegalArgumentException e) {
+
+            res.addProperty("statusCode", "400");
+            res.addProperty("message", e.getMessage());
+
+            return res;
+
+        } catch (Exception e) {
+
+            res.addProperty("statusCode", "400");
+            res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
+
+            return res;
         }
     }
     public JsonObject login(JsonObject req, String ipAddress){
@@ -121,19 +135,39 @@ public class UserService {
         }
     }
 
-
     private boolean registerValidation(String name, String password, String username){
-        if(name == null || name.isEmpty()){
-            return false;
-        }
-        if(password == null || password.isEmpty()){
-            return false;
-        }
-        if(username == null || username.isEmpty()){
-            return false;
-        }
+       
+        validadorNome(name);
+        validadorUsername(username);
+        validadorSenha(password);
+
         return true;
     }
-    
-    
+
+    private boolean validadorSenha(String password) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(password == null) throw new IllegalArgumentException("Senha não pode ser nula!");
+
+        String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[#.*&%$@!()\\-_=+])[A-Za-z0-9#.*&%$@!()\\-_=+]{8,20}$";
+        return password.trim().matches(regex);
+        
+    }
+
+    private boolean validadorNome(String name) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(name == null) throw new IllegalArgumentException("Nome não pode ser nulo!");
+
+        String regex = "^[A-Za-zÀ-ÿ ]{1,60}$";
+        return name.trim().matches(regex);
+    }
+
+    private boolean validadorUsername(String username) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(username == null) throw new IllegalArgumentException("Username não pode ser nulo!");
+
+        String regex = "^[a-z0-9._]{3,20}$";
+        return username.trim().matches(regex);
+    }
+
+
 }

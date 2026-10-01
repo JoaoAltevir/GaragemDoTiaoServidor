@@ -3,6 +3,31 @@
   <groupId>com.altevir.projetos</groupId>
   <artifactId>GaragemDoTiaoServidor</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+
+  <properties>
+    
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.10.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.10.2</version>
+    <scope>test</scope>
+</dependency>
+
+  </dependencies>
   <build>
     <sourceDirectory>src</sourceDirectory>
     <plugins>

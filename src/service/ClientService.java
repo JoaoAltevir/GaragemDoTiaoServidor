@@ -11,13 +11,13 @@ public class ClientService extends Thread{
     
     private Socket socket;
     private BufferedReader entrada;
+    private PrintWriter saida;
     private UserService userService;
     private HomeWindow homeServer;
 
     public ClientService(Socket socket, HomeWindow gui){
         this.socket = socket;
         this.homeServer = gui;
-
         this.userService = new UserService();
     }
 
@@ -25,28 +25,38 @@ public class ClientService extends Thread{
     public void run(){
         try {
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            saida = new PrintWriter(socket.getOutputStream(), true);
             String mensagemJson;
             Gson gson = new Gson();
 
             while((mensagemJson = entrada.readLine()) != null){
                 JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
+                
+                System.out.println("Requisição recebida: " + requisicao);
+
                 String method = requisicao.get("method").getAsString();
 
+                JsonObject response = null;
+
                 switch (method) {
-                    case "REGISTER":
-                        userService.register(requisicao);
+                    case "register":
+                        response = userService.register(requisicao);
                         break;
-                    case "LOGIN":
-                        userService.login(requisicao);
+                    case "login":
+                        response = userService.login(requisicao);
                         break;
-                    case "LOGOUT":
-                        userService.logout();
+                    case "logout":
+                        response = userService.logout();
                         break;
-                    case "GETUSER":
-                        userService.getUser(requisicao);
+                    case "getuser":
+                        response = userService.getUser(requisicao);
                         break;
                     default:
                         break;
+                }
+
+                if (response != null){
+                    saida.println(response.toString());
                 }
             }
         } catch (Exception e) {

@@ -41,8 +41,8 @@ public class HomeWindow extends JFrame {
 	public HomeWindow(int port) {
 
 		this.serverService = new ServerService(port, this);
-		
 		initComponents();
+		this.serverService.iniciarServidor();
 		
 	}
 	
@@ -80,9 +80,6 @@ public class HomeWindow extends JFrame {
 		btn_update = new JButton("Atualizar");
 		btn_update.setBounds(216, 299, 89, 23);
 		contentPane.add(btn_update);
-		
-		model.addRow(new Object[] {"João Silva", "192.168.0.15", "Admin" ,"Offline"});
-		model.addRow(new Object[] {"João Silva", "192.168.0.22", "Student" ,"Online"});
 		
 		table_users.getColumnModel().getColumn(3).setCellRenderer(new StatusRenderer());
 		

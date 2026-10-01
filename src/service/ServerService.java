@@ -32,7 +32,8 @@ public class ServerService{
                 System.out.println("Servidor iniciado na porta: " + porta);
 
                 while(rodando){
-
+                	
+                	System.out.println("Aguardando conexão...");
                     Socket socketClient = serverSocket.accept();
                     System.out.println("Novo client conectado" + socketClient.getInetAddress().getHostAddress());
 

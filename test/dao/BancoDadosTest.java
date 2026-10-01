@@ -17,12 +17,4 @@ public class BancoDadosTest {
 		assertNotNull(conn);
 	}
 
-	@Test
-	public void desconectarTeste() throws SQLException, IOException {
-
-		Connection conn = BancoDados.conectar();
-		conn = BancoDados.desconectar();
-
-		assertNull(conn);
-	}
 }

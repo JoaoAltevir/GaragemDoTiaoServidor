@@ -19,6 +19,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.JButton;
 
 import service.*;
@@ -53,17 +54,21 @@ public class HomeWindow extends JFrame {
 
 	public void refreshUserTable(List<User> users) {
 		
-		DefaultTableModel model = (DefaultTableModel) table_users.getModel();
-		model.setRowCount(0); // Limpa a tabela antes de adicionar novos dados
+		SwingUtilities.invokeLater(() -> {
 
-		for (User user : users) {
-		    SessionUser sessionUser = sessionService.isLogged(user.getUsername());
-		    if (sessionUser != null) {
-				model.addRow(new Object[]{sessionUser.getUsername(), sessionUser.getIpAddress(), user.getRole(), "Online"});
-			}else{
-				model.addRow(new Object[]{user.getUsername(), "-", user.getRole(), "Offline"});
+			DefaultTableModel model = (DefaultTableModel) table_users.getModel();
+			model.setRowCount(0); // Limpa a tabela antes de adicionar novos dados
+	
+			for (User user : users) {
+				SessionUser sessionUser = sessionService.isLogged(user.getUsername());
+				if (sessionUser != null) {
+					model.addRow(new Object[]{sessionUser.getUsername(), sessionUser.getIpAddress(), user.getRole(), "Online"});
+				}else{
+					model.addRow(new Object[]{user.getUsername(), "-", user.getRole(), "Offline"});
+				}
 			}
-		}
+
+		});
 
 	}
 

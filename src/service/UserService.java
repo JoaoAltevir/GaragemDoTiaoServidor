@@ -3,17 +3,17 @@ package service;
 import com.google.gson.JsonObject;
 
 import java.io.*;
-import java.net.*;
 import java.sql.*;
-import com.google.gson.*;
+import entities.User;
 import dao.UserDAO;
-import gui.HomeWindow;
+
 
 
 public class UserService {
 
+
+
     public JsonObject register(JsonObject req){
-        Connection conn = BancoDados.conectar();
         UserDAO bancoUser = new UserDAO();
         JsonObject res = new JsonObject();
 
@@ -24,9 +24,21 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
-            bancoUser.verifyUsers(username);
+            User userExist = bancoUser.getUserByUsername(username);
+
+            if(userExist != null){
+                res.addProperty("statusCode", "400");
+                res.addProperty("message", "Usuário já existe!");
+                return res;
+            }
             
-            //fazer validações dos campos...
+            boolean isValid = registerValidation(name, password, username);
+
+            if(!isValid){
+                res.addProperty("statusCode", "400");
+                res.addProperty("message", "Campos inválidos!");
+                return res;
+            }
 
             bancoUser.register(name, password, username);
 
@@ -35,22 +47,73 @@ public class UserService {
 
             return res;
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
 
             res.addProperty("statusCode", "400");
-            res.addProperty("message", "");
+            res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
 
-        }finally{
-            
-            BancoDados.desconectar();
+            return res;
+
         }
     }
     public JsonObject login(JsonObject req){
 
-        //TODO validar se usuário existe no banco e gerar token com UUID e gerar registro na tabela de UserSession
+        UserDAO bancoUser = new UserDAO();
+        JsonObject res = new JsonObject();
 
+        try{
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+
+            String username = dataObj.get("username").getAsString();
+            String password = dataObj.get("password").getAsString();
+
+            User user = bancoUser.getUserByUsername(username);
+            if (user == null || !user.getPassword().equals(password)) {
+                res.addProperty("statusCode", "401");
+                res.addProperty("message", "Credenciais inválidas!");
+                return res;
+            }
+
+            return res;
+        }catch(Exception e){
+            return res;
+        }
     }
-    public JsonObject logout(){}
-    public JsonObject getUser(JsonObject req){}
+
+
+    
+    public JsonObject logout(){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+    public JsonObject getUser(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+
+    private boolean registerValidation(String name, String password, String username){
+        if(name == null || name.isEmpty()){
+            return false;
+        }
+        if(password == null || password.isEmpty()){
+            return false;
+        }
+        if(username == null || username.isEmpty()){
+            return false;
+        }
+        return true;
+    }
+    
     
 }

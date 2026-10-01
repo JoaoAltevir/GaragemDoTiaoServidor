@@ -32,48 +32,59 @@ public class ClientService extends Thread{
         try {
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             saida = new PrintWriter(socket.getOutputStream(), true);
-            String mensagemJson;
+            String mensagemJson = entrada.readLine();
             Gson gson = new Gson();
 
-            while((mensagemJson = entrada.readLine()) != null){
-                JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
-                
-                System.out.println("Requisição recebida: " + requisicao);
-
-                String method = requisicao.get("method").getAsString();
-
-                JsonObject response = null;
-
-
-                switch (method) {
-                    case "register":
-                        response = userService.register(requisicao);
-                        List <User> allUsers = sessionService.getAllUsers();
-                        homeServer.refreshUserTable(allUsers);
-                        break;
-                    case "login":
-                        response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
-                        allUsers = sessionService.getAllUsers();
-                        homeServer.refreshUserTable(allUsers);
-                        break;
-                    case "logout":
-                        response = userService.logout();
-                        break;
-                    case "getuser":
-                        response = userService.getUser(requisicao);
-                        break;
-                    default:
-                        break;
-                }
-
-                if (response != null){
-                    saida.println(response.toString());
-                }
+            
+            JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
+            
+            System.out.println("Requisição recebida: " + requisicao);
+            
+            String method = requisicao.get("method").getAsString();
+            
+            JsonObject response = new JsonObject();
+            
+            if(mensagemJson == null || mensagemJson.isEmpty()){
+                response.addProperty("statusCode", 400);
+                response.addProperty("message", "Requisição não pode ser nula!");
+                socket.close();
+                return;
             }
+
+            switch (method) {
+                case "register":
+                    response = userService.register(requisicao);
+                    List <User> allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
+                    break;
+                case "login":
+                    response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
+                    allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
+                    break;
+                case "logout":
+                    response = userService.logout();
+                    break;
+                case "getuser":
+                    response = userService.getUser(requisicao);
+                    break;
+                default:
+                    break;
+            }
+
+            if (response != null){
+                saida.println(response.toString());
+                socket.close();
+            }
+    
         } catch (Exception e) {
             System.out.println("Conexão perdida com o cliente");
         } finally {
-            userService.logout();
+            try {
+                socket.close();
+            } catch (IOException e) {
+                System.out.println("Erro ao fechar socket");
+            }
         }
     }
 

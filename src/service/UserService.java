@@ -35,12 +35,12 @@ public class UserService {
             User userExist = bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
             if(userExist != null){
-                res.addProperty("statusCode", "400");
+                res.addProperty("statusCode", 400);
                 res.addProperty("message", "Usuário já existe!");
                 return res;
             }
             if(!isValid){
-                res.addProperty("statusCode", "400");
+                res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos inválidos!");
                 return res;
             }
@@ -52,7 +52,7 @@ public class UserService {
 
             bancoUser.register(user);
 
-            res.addProperty("statusCode", "200");
+            res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
 
             Session.insertUser(user);
@@ -61,21 +61,21 @@ public class UserService {
 
         } catch (SQLException e) {
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
 
             return res;
 
         } catch (IllegalArgumentException e) {
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", e.getMessage());
 
             return res;
 
         } catch (Exception e) {
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
 
             return res;
@@ -95,7 +95,7 @@ public class UserService {
             User user = bancoUser.getUserByUsername(username);
             
             if (user == null || !user.getPassword().equals(password)) {
-                res.addProperty("statusCode", "401");
+                res.addProperty("statusCode", 401);
                 res.addProperty("message", "Credenciais inválidas!");
                 return res;
             }
@@ -106,7 +106,7 @@ public class UserService {
 
                 bancoUser.login(user.getUsername(), token, ipAddress);
     
-                res.addProperty("statusCode", "200");
+                res.addProperty("statusCode", 200);
                 res.addProperty("message", "Login realizado com sucesso!");
                 res.addProperty("token", token);
 
@@ -119,13 +119,13 @@ public class UserService {
                 return res;
             }
 
-            res.addProperty("statusCode","400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Senha ou usuário incorreto!");
 
             return res;
         }catch(Exception e){
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro ao realizar login: " + e.getMessage());
             return res;
         }
@@ -151,6 +151,9 @@ public class UserService {
             return res;
         }
     }
+
+    //FUNÇÕES AUXILIARES
+    
 
     private boolean registerValidation(String name, String password, String username){
        

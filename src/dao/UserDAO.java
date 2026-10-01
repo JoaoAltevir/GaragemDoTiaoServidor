@@ -1,12 +1,13 @@
 package dao;
 
 import java.sql.*;
-
+import java.util.UUID;
 import entities.User;
 
 import java.io.IOException;
 
 public class UserDAO {
+
     public void register(String name, String password, String username) throws SQLException{
 
         String sql = "INSERT INTO users (name, password, username) VALUES (?, ?, ?)";
@@ -57,5 +58,28 @@ public class UserDAO {
             throw new SQLException("Erro ao conectar ao banco de dados", e);
         }
     }
+
+    public void login(String username, String token, String ipAddress) throws SQLException{
+
+        String sql = "INSERT INTO sessions (user_username, token, ip_address) VALUES (?, ?, ?)";
+        try(Connection conn = BancoDados.conectar();
+        PreparedStatement stmt = conn.prepareStatement(sql);
+         ){
+            
+            UUID uuid = UUID.fromString(token);
+            stmt.setString(1, username);
+            stmt.setObject(2, uuid);
+            stmt.setString(3, ipAddress);
+            stmt.executeUpdate();
+
+        }catch(SQLException e){
+            throw e;
+        }catch(IOException e){
+            throw new SQLException("Erro ao conectar ao banco de dados", e);
+        }
+
+    }
+
+
     
 }

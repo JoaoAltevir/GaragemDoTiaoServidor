@@ -43,7 +43,7 @@ public class ClientService extends Thread{
                         response = userService.register(requisicao);
                         break;
                     case "login":
-                        response = userService.login(requisicao);
+                        response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
                         break;
                     case "logout":
                         response = userService.logout();

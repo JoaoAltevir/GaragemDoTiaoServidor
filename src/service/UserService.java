@@ -6,6 +6,7 @@ import java.io.*;
 import java.sql.*;
 import entities.User;
 import dao.UserDAO;
+import java.util.UUID;
 
 
 
@@ -56,7 +57,7 @@ public class UserService {
 
         }
     }
-    public JsonObject login(JsonObject req){
+    public JsonObject login(JsonObject req, String ipAddress){
 
         UserDAO bancoUser = new UserDAO();
         JsonObject res = new JsonObject();
@@ -68,14 +69,33 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
 
             User user = bancoUser.getUserByUsername(username);
+            
             if (user == null || !user.getPassword().equals(password)) {
                 res.addProperty("statusCode", "401");
                 res.addProperty("message", "Credenciais inválidas!");
                 return res;
             }
 
+            if(user.getUsername().equals(username) && user.getPassword().equals(password)){
+                
+                String token = UUID.randomUUID().toString();
+
+                bancoUser.login(user.getUsername(), token, ipAddress);
+                res.addProperty("statusCode", "200");
+                res.addProperty("message", "Login realizado com sucesso!");
+                res.addProperty("token", token);
+                
+                return res;
+            }
+
+            res.addProperty("statusCode","400");
+            res.addProperty("message", "Senha ou usuário incorreto!");
+
             return res;
         }catch(Exception e){
+
+            res.addProperty("statusCode", "400");
+            res.addProperty("message", "Erro ao realizar login: " + e.getMessage());
             return res;
         }
     }

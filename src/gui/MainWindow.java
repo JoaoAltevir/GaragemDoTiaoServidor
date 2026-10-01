@@ -49,7 +49,7 @@ public class MainWindow extends JFrame {
 	
 	public void abrirHome(int port) {
 		
-		this.home = new HomeWindow(port);
+		this.home = new HomeWindow(port, this);
 		home.setVisible(true);
 		this.setVisible(false);
 		

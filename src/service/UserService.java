@@ -4,7 +4,10 @@ import com.google.gson.JsonObject;
 
 import java.io.*;
 import java.sql.*;
+
+import entities.Session;
 import entities.User;
+import entities.SessionUser;
 import dao.UserDAO;
 import java.util.UUID;
 import java.util.regex.PatternSyntaxException;
@@ -42,10 +45,17 @@ public class UserService {
                 return res;
             }
 
-            bancoUser.register(name, password, username);
+            User user = new User();
+            user.setName(name);
+            user.setPassword(password);
+            user.setUsername(username);
+
+            bancoUser.register(user);
 
             res.addProperty("statusCode", "200");
             res.addProperty("message", "Usuário criado com sucesso!");
+
+            Session.insertUser(user);
 
             return res;
 
@@ -95,9 +105,16 @@ public class UserService {
                 String token = UUID.randomUUID().toString();
 
                 bancoUser.login(user.getUsername(), token, ipAddress);
+    
                 res.addProperty("statusCode", "200");
                 res.addProperty("message", "Login realizado com sucesso!");
                 res.addProperty("token", token);
+
+                SessionUser sessionUser = new SessionUser();
+                sessionUser.setUsername(user.getUsername());
+                sessionUser.setToken(token);
+                sessionUser.setIpAddress(ipAddress);
+                Session.insertSessionUser(sessionUser);
                 
                 return res;
             }

@@ -4,6 +4,10 @@ import java.io.*;
 import java.net.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import entities.User;
+import entities.SessionUser;
+import java.util.List;
+
 
 import gui.HomeWindow;
 
@@ -13,12 +17,14 @@ public class ClientService extends Thread{
     private BufferedReader entrada;
     private PrintWriter saida;
     private UserService userService;
+    private SessionService sessionService;
     private HomeWindow homeServer;
 
     public ClientService(Socket socket, HomeWindow gui){
         this.socket = socket;
         this.homeServer = gui;
         this.userService = new UserService();
+        this.sessionService = new SessionService();
     }
 
     @Override
@@ -38,12 +44,17 @@ public class ClientService extends Thread{
 
                 JsonObject response = null;
 
+
                 switch (method) {
                     case "register":
                         response = userService.register(requisicao);
+                        List <User> allUsers = sessionService.getAllUsers();
+                        homeServer.refreshUserTable(allUsers);
                         break;
                     case "login":
                         response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
+                        allUsers = sessionService.getAllUsers();
+                        homeServer.refreshUserTable(allUsers);
                         break;
                     case "logout":
                         response = userService.logout();

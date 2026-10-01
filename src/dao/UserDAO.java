@@ -8,16 +8,16 @@ import java.io.IOException;
 
 public class UserDAO {
 
-    public void register(String name, String password, String username) throws SQLException{
+    public void register(User user) throws SQLException{
 
         String sql = "INSERT INTO users (name, password, username) VALUES (?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
         
-            stmt.setString(1, name);
-            stmt.setString(2, password);
-            stmt.setString(3, username);
+            stmt.setString(1, user.getName());
+            stmt.setString(2, user.getPassword());
+            stmt.setString(3, user.getUsername());
             stmt.executeUpdate();
 
         }catch(SQLException e){

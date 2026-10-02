@@ -7,7 +7,7 @@ public class User {
     private String username;
     private String password;
     private String name;
-	private String role = "user"; // Valor padrão para role
+	private String role = "User"; // Valor padrão para role
     private Timestamp createdAt;
     private Timestamp updatedAt;
 

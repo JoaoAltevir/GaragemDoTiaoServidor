@@ -63,7 +63,7 @@ public class ClientService extends Thread{
                     homeServer.refreshUserTable(allUsers);
                     break;
                 case "logout":
-                    response = userService.logout();
+                    response = userService.logout(requisicao);
                     break;
                 case "getuser":
                     response = userService.getUser(requisicao);

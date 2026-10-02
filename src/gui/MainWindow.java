@@ -18,7 +18,7 @@ public class MainWindow extends JFrame {
 	private JPanel contentPane;
 	private JTextField textField;
 	private HomeWindow home;
-	private ServerService serverService;
+
 
 	/**
 	 * Launch the application.

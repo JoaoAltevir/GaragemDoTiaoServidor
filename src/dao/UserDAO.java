@@ -10,7 +10,7 @@ public class UserDAO {
 
     public void register(User user) throws SQLException{
 
-        String sql = "INSERT INTO users (username, name, password, role) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO user (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
@@ -31,7 +31,7 @@ public class UserDAO {
 
     public User getUserByUsername(String username) throws SQLException{
         
-        String sql = "SELECT * FROM users WHERE username = ?";
+        String sql = "SELECT * FROM user WHERE username = ?";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
@@ -62,7 +62,7 @@ public class UserDAO {
 
     public void login(String username, String token, String ipAddress) throws SQLException{
 
-        String sql = "INSERT INTO sessions (user_username, token, ip_address) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO session_user (user_username, token, ip_address) VALUES (?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
@@ -83,7 +83,7 @@ public class UserDAO {
 
     public void logout (String token) throws SQLException{
 
-        String sql = "DELETE FROM Sessao_usuario WHERE token = ?";
+        String sql = "DELETE FROM session_user WHERE token = ?";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){

@@ -29,20 +29,22 @@ public class ClientService extends Thread{
 
     @Override
     public void run(){
+        Gson gson = new Gson();
+        JsonObject response = new JsonObject();
+
         try {
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             saida = new PrintWriter(socket.getOutputStream(), true);
-            String mensagemJson = entrada.readLine();
-            Gson gson = new Gson();
 
-            
+            String mensagemJson = entrada.readLine();
+           
             JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
             
             System.out.println("Requisição recebida: " + requisicao);
             
             String method = requisicao.get("method").getAsString();
             
-            JsonObject response = new JsonObject();
+            
             
             if(mensagemJson == null || mensagemJson.isEmpty()){
                 response.addProperty("statusCode", 400);
@@ -50,11 +52,13 @@ public class ClientService extends Thread{
                 socket.close();
                 return;
             }
+            
+            List <User> allUsers = sessionService.getAllUsers();
 
             switch (method) {
                 case "register":
                     response = userService.register(requisicao);
-                    List <User> allUsers = sessionService.getAllUsers();
+                    allUsers = sessionService.getAllUsers();
                     homeServer.refreshUserTable(allUsers);
                     break;
                 case "login":
@@ -64,9 +68,22 @@ public class ClientService extends Thread{
                     break;
                 case "logout":
                     response = userService.logout(requisicao);
+                    allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
                     break;
                 case "getuser":
                     response = userService.getUser(requisicao);
+                    break;
+                case "updateusername":
+                    response = userService.updateUserName(requisicao);
+                    break;
+                case "updateuserpassword":
+                    response = userService.updateUserPassword(requisicao);
+                    break;
+                case "deleteuser":
+                    response = userService.deleteUser(requisicao);
+                    allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
                     break;
                 default:
                     break;
@@ -78,12 +95,21 @@ public class ClientService extends Thread{
             }
     
         } catch (Exception e) {
-            System.out.println("Conexão perdida com o cliente");
+
+            response.addProperty("statusCode", 500);
+            response.addProperty("message", "Erro ao processar requisição: " + e.getMessage());
+            saida.println(response.toString());
+            System.out.println("Erro ao processar requisição: " + e.getMessage());
+
         } finally {
             try {
                 socket.close();
             } catch (IOException e) {
+
+                response.addProperty("statusCode", 500);
+                response.addProperty("message", "Erro ao processar requisição: " + e.getMessage());
                 System.out.println("Erro ao fechar socket");
+                saida.println(response.toString());
             }
         }
     }

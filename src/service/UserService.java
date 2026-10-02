@@ -142,7 +142,7 @@ public class UserService {
 
             String token = dataObj.get("token").getAsString();
 
-            if(!Session.findByToken(token)){
+            if(!Session.logout(token)){
 
                 res.addProperty("statusCode", 401);
                 res.addProperty("message", "Sessão encerrada ou não autorizada!");
@@ -167,11 +167,37 @@ public class UserService {
     }
 
     public JsonObject getUser(JsonObject req){
+        UserDAO bancoUser = new UserDAO();
         JsonObject res = new JsonObject();
        
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            String token = dataObj.get("token").getAsString();
+            String usernameRequested = dataObj.get("username").getAsString();
+
+            isValidTokenByUsername(token, usernameRequested);
+
+            User user = bancoUser.getUserByUsername(usernameRequested);
+
+            JsonObject userData = new JsonObject();
+            userData.addProperty("name", user.getName());
+            userData.addProperty("username", user.getUsername());
+
+            res.addProperty("statusCode", 200);
+            res.add("data", userData);
+
+            return res;
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", e.getMessage());
             return res;
         }catch(Exception e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro ao buscar usuário: " + e.getMessage());
+
             return res;
         }
     }
@@ -214,6 +240,17 @@ public class UserService {
 
     //FUNÇÕES AUXILIARES
     
+    private boolean isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
+
+        String username = Session.findByToken(token);
+        if(username != null){
+            if(username.equals(usernameRequested)) return true;
+            else throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
+        }else{
+            throw new IllegalArgumentException("Token inválido!");
+        }
+
+    }
 
     private boolean registerValidation(String name, String password, String username){
        

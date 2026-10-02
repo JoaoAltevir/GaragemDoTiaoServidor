@@ -28,7 +28,7 @@ public class Session {
         sessionUsers.removeIf(sessionUser -> sessionUser.getUsername().equals(username));
     }
 
-    public static boolean findByToken(String token){
+    public static boolean logout(String token){
         for (SessionUser sessionUser : sessionUsers) {
             if (sessionUser.getToken().equals(token)) {
                 removeSessionUser(sessionUser.getUsername());
@@ -36,6 +36,15 @@ public class Session {
             }
         }
         return false;
+    }
+
+    public static String findByToken(String token) {
+        for (SessionUser sessionUser : sessionUsers) {
+            if (sessionUser.getToken().equals(token)) {
+                return sessionUser.getUsername();
+            }
+        }
+        return null;
     }
 
 }

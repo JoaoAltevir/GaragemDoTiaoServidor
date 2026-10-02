@@ -2,7 +2,6 @@ package service;
 
 import com.google.gson.JsonObject;
 
-import java.io.*;
 import java.sql.*;
 
 import entities.Session;
@@ -11,6 +10,7 @@ import entities.SessionUser;
 import dao.UserDAO;
 import java.util.UUID;
 import java.util.regex.PatternSyntaxException;
+import java.util.List;
 
 
 
@@ -218,9 +218,18 @@ public class UserService {
     }
 
     public JsonObject deleteUser(JsonObject req){
-        JsonObject res = new JsonObject();
-       
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+
+            isValidTokenByUsername(token, username);
+
+            bancoUser.deleteUser(username);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Usuário deletado com sucesso!");
             return res;
         }catch(Exception e){
             return res;
@@ -234,6 +243,10 @@ public class UserService {
 
 
     //FUNÇÕES AUXILIARES
+
+    public List<User> getAllUsers(){
+
+    }
     
     private boolean isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
 

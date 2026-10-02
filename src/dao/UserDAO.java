@@ -100,4 +100,22 @@ public class UserDAO {
 
     }
 
+    public void deleteUser (String username) throws SQLException {
+
+        String sql = "DELETE FROM user WHERE username = ?";
+        try(
+            Connection conn = BancoDados.conectar();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+        ){
+
+            stmt.setString(1, username);
+            stmt.executeUpdate();
+
+        }catch (SQLException e){
+            throw e;
+        }catch (IOException e) {
+            throw new SQLException("Erro ao conectar no banco", e);
+        }
+    }
+
 }

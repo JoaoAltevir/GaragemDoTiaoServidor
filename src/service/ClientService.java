@@ -5,7 +5,6 @@ import java.net.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import entities.User;
-import entities.SessionUser;
 import java.util.List;
 
 

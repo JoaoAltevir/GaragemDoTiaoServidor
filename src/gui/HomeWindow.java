@@ -5,7 +5,10 @@ import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-
+import java.awt.event.*;
+import java.util.List;
+import entities.User;
+import entities.SessionUser;
 import javax.swing.Icon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -16,6 +19,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.JButton;
 
 import service.*;
@@ -31,6 +35,7 @@ public class HomeWindow extends JFrame {
 	private JButton btn_update;
 	//SERVICES
 	private ServerService serverService;
+	private SessionService sessionService;
 	//GUI's
 	private MainWindow mainWindow;
 	
@@ -38,12 +43,39 @@ public class HomeWindow extends JFrame {
 	/**
 	 * Create the frame.
 	 */
-	public HomeWindow(int port) {
+	public HomeWindow(int port, MainWindow main) {
 
+		this.mainWindow = main;
 		this.serverService = new ServerService(port, this);
 		initComponents();
 		this.serverService.iniciarServidor();
 		
+	}
+
+	public void refreshUserTable(List<User> users) {
+		
+		SwingUtilities.invokeLater(() -> {
+
+			DefaultTableModel model = (DefaultTableModel) table_users.getModel();
+			model.setRowCount(0); // Limpa a tabela antes de adicionar novos dados
+	
+			for (User user : users) {
+				SessionUser sessionUser = sessionService.isLogged(user.getUsername());
+				if (sessionUser != null) {
+					model.addRow(new Object[]{sessionUser.getUsername(), sessionUser.getIpAddress(), user.getRole(), "Online"});
+				}else{
+					model.addRow(new Object[]{user.getUsername(), "-", user.getRole(), "Offline"});
+				}
+			}
+
+		});
+
+	}
+
+	public void pararServidor(){
+		System.out.println("Parando servidor... Obrigado por acessar a garagem do Tiao!");
+		this.mainWindow.setVisible(true);
+		this.serverService.fecharServidor();
 	}
 	
 	public void initComponents() {
@@ -75,6 +107,12 @@ public class HomeWindow extends JFrame {
 		
 		btn_exit = new JButton("Sair");
 		btn_exit.setBounds(10, 333, 89, 23);
+		btn_exit.addActionListener(new ActionListener(){
+			public void actionPerformed(ActionEvent e) {
+				pararServidor();
+				dispose();
+			}
+		});
 		contentPane.add(btn_exit);
 		
 		btn_update = new JButton("Atualizar");

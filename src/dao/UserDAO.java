@@ -8,16 +8,17 @@ import java.io.IOException;
 
 public class UserDAO {
 
-    public void register(String name, String password, String username) throws SQLException{
+    public void register(User user) throws SQLException{
 
-        String sql = "INSERT INTO users (name, password, username) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO users (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
         
-            stmt.setString(1, name);
-            stmt.setString(2, password);
-            stmt.setString(3, username);
+            stmt.setString(1, user.getUsername());
+            stmt.setString(2, user.getName());
+            stmt.setString(3, user.getPassword());
+            stmt.setString(4, user.getRole());
             stmt.executeUpdate();
 
         }catch(SQLException e){
@@ -80,6 +81,23 @@ public class UserDAO {
 
     }
 
+    public void logout (String token) throws SQLException{
 
-    
+        String sql = "DELETE FROM Sessao_usuario WHERE token = ?";
+        try(Connection conn = BancoDados.conectar();
+        PreparedStatement stmt = conn.prepareStatement(sql);
+         ){
+            
+            UUID uuid = UUID.fromString(token);
+            stmt.setObject(1, uuid);
+            stmt.executeUpdate();
+
+        }catch(SQLException e){
+            throw e;
+        }catch(IOException e){
+            throw new SQLException("Erro ao conectar ao banco de dados", e);
+        }
+
+    }
+
 }

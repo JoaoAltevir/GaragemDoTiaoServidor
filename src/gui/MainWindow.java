@@ -18,7 +18,7 @@ public class MainWindow extends JFrame {
 	private JPanel contentPane;
 	private JTextField textField;
 	private HomeWindow home;
-	private ServerService serverService;
+
 
 	/**
 	 * Launch the application.
@@ -49,7 +49,7 @@ public class MainWindow extends JFrame {
 	
 	public void abrirHome(int port) {
 		
-		this.home = new HomeWindow(port);
+		this.home = new HomeWindow(port, this);
 		home.setVisible(true);
 		this.setVisible(false);
 		

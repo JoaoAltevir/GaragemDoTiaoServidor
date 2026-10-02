@@ -4,6 +4,10 @@ import java.io.*;
 import java.net.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import entities.User;
+import entities.SessionUser;
+import java.util.List;
+
 
 import gui.HomeWindow;
 
@@ -13,12 +17,14 @@ public class ClientService extends Thread{
     private BufferedReader entrada;
     private PrintWriter saida;
     private UserService userService;
+    private SessionService sessionService;
     private HomeWindow homeServer;
 
     public ClientService(Socket socket, HomeWindow gui){
         this.socket = socket;
         this.homeServer = gui;
         this.userService = new UserService();
+        this.sessionService = new SessionService();
     }
 
     @Override
@@ -26,43 +32,59 @@ public class ClientService extends Thread{
         try {
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             saida = new PrintWriter(socket.getOutputStream(), true);
-            String mensagemJson;
+            String mensagemJson = entrada.readLine();
             Gson gson = new Gson();
 
-            while((mensagemJson = entrada.readLine()) != null){
-                JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
-                
-                System.out.println("Requisição recebida: " + requisicao);
-
-                String method = requisicao.get("method").getAsString();
-
-                JsonObject response = null;
-
-                switch (method) {
-                    case "register":
-                        response = userService.register(requisicao);
-                        break;
-                    case "login":
-                        response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
-                        break;
-                    case "logout":
-                        response = userService.logout();
-                        break;
-                    case "getuser":
-                        response = userService.getUser(requisicao);
-                        break;
-                    default:
-                        break;
-                }
-
-                if (response != null){
-                    saida.println(response.toString());
-                }
+            
+            JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
+            
+            System.out.println("Requisição recebida: " + requisicao);
+            
+            String method = requisicao.get("method").getAsString();
+            
+            JsonObject response = new JsonObject();
+            
+            if(mensagemJson == null || mensagemJson.isEmpty()){
+                response.addProperty("statusCode", 400);
+                response.addProperty("message", "Requisição não pode ser nula!");
+                socket.close();
+                return;
             }
+
+            switch (method) {
+                case "register":
+                    response = userService.register(requisicao);
+                    List <User> allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
+                    break;
+                case "login":
+                    response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
+                    allUsers = sessionService.getAllUsers();
+                    homeServer.refreshUserTable(allUsers);
+                    break;
+                case "logout":
+                    response = userService.logout(requisicao);
+                    break;
+                case "getuser":
+                    response = userService.getUser(requisicao);
+                    break;
+                default:
+                    break;
+            }
+
+            if (response != null){
+                saida.println(response.toString());
+                socket.close();
+            }
+    
         } catch (Exception e) {
             System.out.println("Conexão perdida com o cliente");
         } finally {
-            userService.logout();
+            try {
+                socket.close();
+            } catch (IOException e) {
+                System.out.println("Erro ao fechar socket");
+            }
         }
     }
 

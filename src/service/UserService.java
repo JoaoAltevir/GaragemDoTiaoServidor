@@ -4,9 +4,13 @@ import com.google.gson.JsonObject;
 
 import java.io.*;
 import java.sql.*;
+
+import entities.Session;
 import entities.User;
+import entities.SessionUser;
 import dao.UserDAO;
 import java.util.UUID;
+import java.util.regex.PatternSyntaxException;
 
 
 
@@ -25,36 +29,56 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
-            User userExist = bancoUser.getUserByUsername(username);
+            
+            boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
+            
+            User userExist = bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
             if(userExist != null){
-                res.addProperty("statusCode", "400");
+                res.addProperty("statusCode", 400);
                 res.addProperty("message", "Usuário já existe!");
                 return res;
             }
-            
-            boolean isValid = registerValidation(name, password, username);
-
             if(!isValid){
-                res.addProperty("statusCode", "400");
+                res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos inválidos!");
                 return res;
             }
 
-            bancoUser.register(name, password, username);
+            User user = new User();
+            user.setName(name);
+            user.setPassword(password);
+            user.setUsername(username);
 
-            res.addProperty("statusCode", "200");
+            bancoUser.register(user);
+
+            res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
+
+            Session.insertUser(user);
 
             return res;
 
         } catch (SQLException e) {
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
 
             return res;
 
+        } catch (IllegalArgumentException e) {
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", e.getMessage());
+
+            return res;
+
+        } catch (Exception e) {
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
+
+            return res;
         }
     }
     public JsonObject login(JsonObject req, String ipAddress){
@@ -71,7 +95,7 @@ public class UserService {
             User user = bancoUser.getUserByUsername(username);
             
             if (user == null || !user.getPassword().equals(password)) {
-                res.addProperty("statusCode", "401");
+                res.addProperty("statusCode", 401);
                 res.addProperty("message", "Credenciais inválidas!");
                 return res;
             }
@@ -81,20 +105,27 @@ public class UserService {
                 String token = UUID.randomUUID().toString();
 
                 bancoUser.login(user.getUsername(), token, ipAddress);
-                res.addProperty("statusCode", "200");
+    
+                res.addProperty("statusCode", 200);
                 res.addProperty("message", "Login realizado com sucesso!");
                 res.addProperty("token", token);
+
+                SessionUser sessionUser = new SessionUser();
+                sessionUser.setUsername(user.getUsername());
+                sessionUser.setToken(token);
+                sessionUser.setIpAddress(ipAddress);
+                Session.insertSessionUser(sessionUser);
                 
                 return res;
             }
 
-            res.addProperty("statusCode","400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Senha ou usuário incorreto!");
 
             return res;
         }catch(Exception e){
 
-            res.addProperty("statusCode", "400");
+            res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro ao realizar login: " + e.getMessage());
             return res;
         }
@@ -102,15 +133,39 @@ public class UserService {
 
 
     
-    public JsonObject logout(){
+    public JsonObject logout(JsonObject req){
         JsonObject res = new JsonObject();
-       
+        UserDAO bancoUser = new UserDAO();
+
         try{
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+
+            String token = dataObj.get("token").getAsString();
+
+            if(!Session.findByToken(token)){
+
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Sessão encerrada ou não autorizada!");
+                return res;
+
+            }
+
+            bancoUser.logout(token);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Usuário deslogado com sucesso!");
+
             return res;
-        }catch(Exception e){
+            
+        }catch(SQLException e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro ao realizar logout: " + e.getMessage());
             return res;
+
         }
     }
+
     public JsonObject getUser(JsonObject req){
         JsonObject res = new JsonObject();
        
@@ -121,19 +176,78 @@ public class UserService {
         }
     }
 
+    public JsonObject updateUserName(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+    public JsonObject updateUserPassword(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+    public JsonObject deleteUser(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+
+
+
+
+
+
+    //FUNÇÕES AUXILIARES
+    
 
     private boolean registerValidation(String name, String password, String username){
-        if(name == null || name.isEmpty()){
-            return false;
-        }
-        if(password == null || password.isEmpty()){
-            return false;
-        }
-        if(username == null || username.isEmpty()){
-            return false;
-        }
+       
+        validadorNome(name);
+        validadorUsername(username);
+        validadorSenha(password);
+
         return true;
     }
-    
-    
+
+    private boolean validadorSenha(String password) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(password == null) throw new IllegalArgumentException("Senha não pode ser nula!");
+
+        String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[#.*&%$@!()\\-_=+])[A-Za-z0-9#.*&%$@!()\\-_=+]{8,20}$";
+        return password.trim().matches(regex);
+        
+    }
+
+    private boolean validadorNome(String name) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(name == null) throw new IllegalArgumentException("Nome não pode ser nulo!");
+
+        String regex = "^[A-Za-zÀ-ÿ ]{1,60}$";
+        return name.trim().matches(regex);
+    }
+
+    private boolean validadorUsername(String username) throws IllegalArgumentException, PatternSyntaxException {
+
+        if(username == null) throw new IllegalArgumentException("Username não pode ser nulo!");
+
+        String regex = "^[a-z0-9._]{3,20}$";
+        return username.trim().matches(regex);
+    }
+
+
 }

@@ -24,4 +24,18 @@ public class Session {
         Session.sessionUsers.add(sessionUser);
     }
 
+    public static void removeSessionUser(String username) {
+        sessionUsers.removeIf(sessionUser -> sessionUser.getUsername().equals(username));
+    }
+
+    public static boolean findByToken(String token){
+        for (SessionUser sessionUser : sessionUsers) {
+            if (sessionUser.getToken().equals(token)) {
+                removeSessionUser(sessionUser.getUsername());
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

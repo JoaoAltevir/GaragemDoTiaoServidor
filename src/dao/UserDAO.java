@@ -10,14 +10,15 @@ public class UserDAO {
 
     public void register(User user) throws SQLException{
 
-        String sql = "INSERT INTO users (name, password, username) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO users (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
         
-            stmt.setString(1, user.getName());
-            stmt.setString(2, user.getPassword());
-            stmt.setString(3, user.getUsername());
+            stmt.setString(1, user.getUsername());
+            stmt.setString(2, user.getName());
+            stmt.setString(3, user.getPassword());
+            stmt.setString(4, user.getRole());
             stmt.executeUpdate();
 
         }catch(SQLException e){
@@ -80,6 +81,23 @@ public class UserDAO {
 
     }
 
+    public void logout (String token) throws SQLException{
 
-    
+        String sql = "DELETE FROM Sessao_usuario WHERE token = ?";
+        try(Connection conn = BancoDados.conectar();
+        PreparedStatement stmt = conn.prepareStatement(sql);
+         ){
+            
+            UUID uuid = UUID.fromString(token);
+            stmt.setObject(1, uuid);
+            stmt.executeUpdate();
+
+        }catch(SQLException e){
+            throw e;
+        }catch(IOException e){
+            throw new SQLException("Erro ao conectar ao banco de dados", e);
+        }
+
+    }
+
 }

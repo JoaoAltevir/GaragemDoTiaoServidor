@@ -133,15 +133,39 @@ public class UserService {
 
 
     
-    public JsonObject logout(){
+    public JsonObject logout(JsonObject req){
         JsonObject res = new JsonObject();
-       
+        UserDAO bancoUser = new UserDAO();
+
         try{
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+
+            String token = dataObj.get("token").getAsString();
+
+            if(!Session.findByToken(token)){
+
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Sessão encerrada ou não autorizada!");
+                return res;
+
+            }
+
+            bancoUser.logout(token);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Usuário deslogado com sucesso!");
+
             return res;
-        }catch(Exception e){
+            
+        }catch(SQLException e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro ao realizar logout: " + e.getMessage());
             return res;
+
         }
     }
+
     public JsonObject getUser(JsonObject req){
         JsonObject res = new JsonObject();
        
@@ -151,6 +175,42 @@ public class UserService {
             return res;
         }
     }
+
+    public JsonObject updateUserName(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+    public JsonObject updateUserPassword(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+    public JsonObject deleteUser(JsonObject req){
+        JsonObject res = new JsonObject();
+       
+        try{
+            return res;
+        }catch(Exception e){
+            return res;
+        }
+    }
+
+
+
+
+
+
 
     //FUNÇÕES AUXILIARES
     

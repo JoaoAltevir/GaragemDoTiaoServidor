@@ -16,12 +16,11 @@ import java.util.regex.PatternSyntaxException;
 
 public class UserService {
 
-
+    private final UserDAO bancoUser = new UserDAO();
+    private JsonObject res = new JsonObject();
 
     public JsonObject register(JsonObject req){
-        UserDAO bancoUser = new UserDAO();
-        JsonObject res = new JsonObject();
-
+        
         try {
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
@@ -32,7 +31,7 @@ public class UserService {
             
             boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
             
-            User userExist = bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
+            User userExist = this.bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
             if(userExist != null){
                 res.addProperty("statusCode", 400);
@@ -50,7 +49,7 @@ public class UserService {
             user.setPassword(password);
             user.setUsername(username);
 
-            bancoUser.register(user);
+            this.bancoUser.register(user);
 
             res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
@@ -83,16 +82,14 @@ public class UserService {
     }
     public JsonObject login(JsonObject req, String ipAddress){
 
-        UserDAO bancoUser = new UserDAO();
-        JsonObject res = new JsonObject();
-
+        
         try{
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
             String username = dataObj.get("username").getAsString();
             String password = dataObj.get("password").getAsString();
 
-            User user = bancoUser.getUserByUsername(username);
+            User user = this.bancoUser.getUserByUsername(username);
             
             if (user == null || !user.getPassword().equals(password)) {
                 res.addProperty("statusCode", 401);
@@ -104,7 +101,7 @@ public class UserService {
                 
                 String token = UUID.randomUUID().toString();
 
-                bancoUser.login(user.getUsername(), token, ipAddress);
+                this.bancoUser.login(user.getUsername(), token, ipAddress);
     
                 res.addProperty("statusCode", 200);
                 res.addProperty("message", "Login realizado com sucesso!");
@@ -134,9 +131,7 @@ public class UserService {
 
     
     public JsonObject logout(JsonObject req){
-        JsonObject res = new JsonObject();
-        UserDAO bancoUser = new UserDAO();
-
+        
         try{
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
@@ -150,7 +145,7 @@ public class UserService {
 
             }
 
-            bancoUser.logout(token);
+            this.bancoUser.logout(token);
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deslogado com sucesso!");
@@ -167,9 +162,8 @@ public class UserService {
     }
 
     public JsonObject getUser(JsonObject req){
-        UserDAO bancoUser = new UserDAO();
-        JsonObject res = new JsonObject();
-       
+        
+    
         try{
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
@@ -178,7 +172,7 @@ public class UserService {
 
             isValidTokenByUsername(token, usernameRequested);
 
-            User user = bancoUser.getUserByUsername(usernameRequested);
+            User user = this.bancoUser.getUserByUsername(usernameRequested);
 
             JsonObject userData = new JsonObject();
             userData.addProperty("name", user.getName());
@@ -203,9 +197,10 @@ public class UserService {
     }
 
     public JsonObject updateUserName(JsonObject req){
-        JsonObject res = new JsonObject();
-       
+        
         try{
+
+
             return res;
         }catch(Exception e){
             return res;
@@ -213,8 +208,8 @@ public class UserService {
     }
 
     public JsonObject updateUserPassword(JsonObject req){
-        JsonObject res = new JsonObject();
-       
+        
+    
         try{
             return res;
         }catch(Exception e){

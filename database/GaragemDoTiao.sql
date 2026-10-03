@@ -1,4 +1,4 @@
-CREATE TABLE user (
+CREATE TABLE usuario (
     username VARCHAR(20) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     password VARCHAR(255) NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE user (
     CONSTRAINT chk_password_length CHECK (CHAR_LENGTH(password) >= 8)
 );
 
-CREATE TABLE session_user (
+CREATE TABLE sessao_usuario (
     token UUID PRIMARY KEY,
     user_username VARCHAR(20) NOT NULL,
     ip_address VARCHAR(45),

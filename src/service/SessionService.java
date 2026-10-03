@@ -12,6 +12,18 @@ public class SessionService {
         return Session.getUsers();
     }
 
+    public void insertUsers(List<User> users){
+        for( User user : users){
+            Session.insertUser(user);
+        }
+    }
+
+    public void insertSessionUsers(List<SessionUser> users){
+        for (SessionUser sessionUser : users){
+            Session.insertSessionUser(sessionUser);
+        }
+    }
+
     public SessionUser isLogged(String username) {
         List<SessionUser> sessionUsers = Session.getSessionUsers();
         for (SessionUser sessionUser : sessionUsers) {

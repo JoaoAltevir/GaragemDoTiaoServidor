@@ -2,7 +2,6 @@ package service;
 
 import com.google.gson.JsonObject;
 
-import java.io.*;
 import java.sql.*;
 
 import entities.Session;
@@ -11,17 +10,27 @@ import entities.SessionUser;
 import dao.UserDAO;
 import java.util.UUID;
 import java.util.regex.PatternSyntaxException;
+import java.util.List;
+import gui.HomeWindow;
 
 
 
 public class UserService {
 
+    private final UserDAO bancoUser = new UserDAO();
+    private JsonObject res = new JsonObject();
+    private HomeWindow home;
 
+    public UserService(HomeWindow home){
+
+        this.home = home;
+
+    }
+
+    public UserService(){}
 
     public JsonObject register(JsonObject req){
-        UserDAO bancoUser = new UserDAO();
-        JsonObject res = new JsonObject();
-
+        
         try {
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
@@ -32,7 +41,7 @@ public class UserService {
             
             boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
             
-            User userExist = bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
+            User userExist = this.bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
             if(userExist != null){
                 res.addProperty("statusCode", 400);
@@ -50,7 +59,7 @@ public class UserService {
             user.setPassword(password);
             user.setUsername(username);
 
-            bancoUser.register(user);
+            this.bancoUser.register(user);
 
             res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
@@ -83,16 +92,14 @@ public class UserService {
     }
     public JsonObject login(JsonObject req, String ipAddress){
 
-        UserDAO bancoUser = new UserDAO();
-        JsonObject res = new JsonObject();
-
+        
         try{
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
             String username = dataObj.get("username").getAsString();
             String password = dataObj.get("password").getAsString();
 
-            User user = bancoUser.getUserByUsername(username);
+            User user = this.bancoUser.getUserByUsername(username);
             
             if (user == null || !user.getPassword().equals(password)) {
                 res.addProperty("statusCode", 401);
@@ -104,7 +111,7 @@ public class UserService {
                 
                 String token = UUID.randomUUID().toString();
 
-                bancoUser.login(user.getUsername(), token, ipAddress);
+                this.bancoUser.login(user.getUsername(), token, ipAddress);
     
                 res.addProperty("statusCode", 200);
                 res.addProperty("message", "Login realizado com sucesso!");
@@ -134,15 +141,13 @@ public class UserService {
 
     
     public JsonObject logout(JsonObject req){
-        JsonObject res = new JsonObject();
-        UserDAO bancoUser = new UserDAO();
-
+        
         try{
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
             String token = dataObj.get("token").getAsString();
 
-            if(!Session.findByToken(token)){
+            if(!Session.logout(token)){
 
                 res.addProperty("statusCode", 401);
                 res.addProperty("message", "Sessão encerrada ou não autorizada!");
@@ -150,7 +155,7 @@ public class UserService {
 
             }
 
-            bancoUser.logout(token);
+            this.bancoUser.logout(token);
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deslogado com sucesso!");
@@ -167,53 +172,193 @@ public class UserService {
     }
 
     public JsonObject getUser(JsonObject req){
-        JsonObject res = new JsonObject();
-       
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            String token = dataObj.get("token").getAsString();
+            String usernameRequested = dataObj.get("username").getAsString();
+
+            isValidTokenByUsername(token, usernameRequested);
+
+            User user = this.bancoUser.getUserByUsername(usernameRequested);
+
+            JsonObject userData = new JsonObject();
+            userData.addProperty("name", user.getName());
+            userData.addProperty("username", user.getUsername());
+
+            res.addProperty("statusCode", 200);
+            res.add("data", userData);
+
+            return res;
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", e.getMessage());
             return res;
         }catch(Exception e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro ao buscar usuário: " + e.getMessage());
+
             return res;
         }
     }
 
     public JsonObject updateUserName(JsonObject req){
-        JsonObject res = new JsonObject();
-       
+        
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+            String name = dataObj.get("name").getAsString();
+
+            isValidTokenByUsername(token, username);
+
+            bancoUser.updateUserName(username, name);        
+            
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Nome do usuário atualizado com sucesso!");
+
             return res;
         }catch(Exception e){
             return res;
         }
     }
 
+
     public JsonObject updateUserPassword(JsonObject req){
-        JsonObject res = new JsonObject();
-       
+    
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+            String oldPassword = dataObj.get("oldPassword").getAsString();
+            String newPassword = dataObj.get("newPassword").getAsString();
+
+            isValidTokenByUsername(token, username);
+            isOldPassword(oldPassword, username);
+            validadorSenha(newPassword);
+
+            bancoUser.updateUserPassword(username, newPassword);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Senha Atualizada com sucesso!");
+
             return res;
-        }catch(Exception e){
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Erro de inserção: " + e.getMessage());
+            return res;
+        }catch(SQLException e){
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro de banco: " + e.getMessage());
             return res;
         }
     }
 
     public JsonObject deleteUser(JsonObject req){
-        JsonObject res = new JsonObject();
-       
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+
+            isValidTokenByUsername(token, username);
+
+            bancoUser.deleteUser(username);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Usuário deletado com sucesso!");
             return res;
-        }catch(Exception e){
+        }catch(SQLException e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            return res;
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", e.getMessage());
             return res;
         }
     }
 
-
-
-
-
-
-
     //FUNÇÕES AUXILIARES
+
+    private void isOldPassword(String password, String username) throws IllegalArgumentException {
+        try {
+            
+           String userPassword = bancoUser.isPassword(username);
+
+           if(!password.equals(userPassword)){
+                throw new IllegalArgumentException("Senhas diferentes!");
+           }
+            
+        } catch (Exception e) {
+           throw new IllegalArgumentException(e.getMessage());
+        }
+    }
+
+    private void getAllUsers(){
+        try {
+            List<User> users = bancoUser.getAllUsers();
     
+            for( User user : users){
+                Session.insertUser(user);
+            }
+            
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+    }
+
+    private void getAllSessionUsers(){
+        try {
+            
+            List<SessionUser> users = bancoUser.getAllSessionUsers();
+
+            for( SessionUser sessionUser : users){
+                Session.insertSessionUser(sessionUser);
+            }
+
+        
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+
+    }
+
+    public void getAll(){
+
+        SessionService session = new SessionService();
+        getAllUsers();
+        getAllSessionUsers();
+
+
+        List<User> users = session.getAllUsers();       
+        
+            this.home.refreshUserTable(users);
+
+    }
+    
+    private boolean isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
+
+        String username = Session.findByToken(token);
+        if(username != null){
+            if(username.equals(usernameRequested)) return true;
+            else throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
+        }else{
+            throw new IllegalArgumentException("Token inválido!");
+        }
+
+    }
 
     private boolean registerValidation(String name, String password, String username){
        

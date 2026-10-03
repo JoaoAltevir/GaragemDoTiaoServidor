@@ -36,6 +36,7 @@ public class HomeWindow extends JFrame {
 	//SERVICES
 	private ServerService serverService;
 	private SessionService sessionService;
+	private UserService userService;
 	//GUI's
 	private MainWindow mainWindow;
 	
@@ -47,14 +48,19 @@ public class HomeWindow extends JFrame {
 
 		this.mainWindow = main;
 		this.serverService = new ServerService(port, this);
+		this.userService = new UserService(this);
+
 		initComponents();
 		this.serverService.iniciarServidor();
+		this.userService.getAll();
+
 		
 	}
 
 	public void refreshUserTable(List<User> users) {
 		
 		SwingUtilities.invokeLater(() -> {
+
 
 			DefaultTableModel model = (DefaultTableModel) table_users.getModel();
 			model.setRowCount(0); // Limpa a tabela antes de adicionar novos dados
@@ -76,6 +82,7 @@ public class HomeWindow extends JFrame {
 		System.out.println("Parando servidor... Obrigado por acessar a garagem do Tiao!");
 		this.mainWindow.setVisible(true);
 		this.serverService.fecharServidor();
+		this.dispose();
 	}
 	
 	public void initComponents() {

@@ -11,6 +11,7 @@ import dao.UserDAO;
 import java.util.UUID;
 import java.util.regex.PatternSyntaxException;
 import java.util.List;
+import gui.HomeWindow;
 
 
 
@@ -18,6 +19,15 @@ public class UserService {
 
     private final UserDAO bancoUser = new UserDAO();
     private JsonObject res = new JsonObject();
+    private HomeWindow home;
+
+    public UserService(HomeWindow home){
+
+        this.home = home;
+
+    }
+
+    public UserService(){}
 
     public JsonObject register(JsonObject req){
         
@@ -162,8 +172,6 @@ public class UserService {
     }
 
     public JsonObject getUser(JsonObject req){
-        
-    
         try{
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
@@ -200,6 +208,18 @@ public class UserService {
         
         try{
 
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+            String name = dataObj.get("name").getAsString();
+
+            isValidTokenByUsername(token, username);
+
+            bancoUser.updateUserName(username, name);        
+            
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Nome do usuário atualizado com sucesso!");
 
             return res;
         }catch(Exception e){
@@ -207,12 +227,36 @@ public class UserService {
         }
     }
 
+
     public JsonObject updateUserPassword(JsonObject req){
-        
     
         try{
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+
+            String token = dataObj.get("token").getAsString();
+            String username = dataObj.get("username").getAsString();
+            String oldPassword = dataObj.get("oldPassword").getAsString();
+            String newPassword = dataObj.get("newPassword").getAsString();
+
+            isValidTokenByUsername(token, username);
+            isOldPassword(oldPassword, username);
+            validadorSenha(newPassword);
+
+            bancoUser.updateUserPassword(username, newPassword);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Senha Atualizada com sucesso!");
+
             return res;
-        }catch(Exception e){
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Erro de inserção: " + e.getMessage());
+            return res;
+        }catch(SQLException e){
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro de banco: " + e.getMessage());
             return res;
         }
     }
@@ -231,20 +275,76 @@ public class UserService {
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deletado com sucesso!");
             return res;
-        }catch(Exception e){
+        }catch(SQLException e){
+
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            return res;
+        }catch(IllegalArgumentException e){
+
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", e.getMessage());
             return res;
         }
     }
 
-
-
-
-
-
-
     //FUNÇÕES AUXILIARES
 
-    public List<User> getAllUsers(){
+    private void isOldPassword(String password, String username) throws IllegalArgumentException {
+        try {
+            
+           String userPassword = bancoUser.isPassword(username);
+
+           if(!password.equals(userPassword)){
+                throw new IllegalArgumentException("Senhas diferentes!");
+           }
+            
+        } catch (Exception e) {
+           throw new IllegalArgumentException(e.getMessage());
+        }
+    }
+
+    private void getAllUsers(){
+        try {
+            List<User> users = bancoUser.getAllUsers();
+    
+            for( User user : users){
+                Session.insertUser(user);
+            }
+            
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+    }
+
+    private void getAllSessionUsers(){
+        try {
+            
+            List<SessionUser> users = bancoUser.getAllSessionUsers();
+
+            for( SessionUser sessionUser : users){
+                Session.insertSessionUser(sessionUser);
+            }
+
+        
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+
+    }
+
+    public void getAll(){
+
+        SessionService session = new SessionService();
+        getAllUsers();
+        getAllSessionUsers();
+
+
+        List<User> users = session.getAllUsers();       
+        
+            this.home.refreshUserTable(users);
 
     }
     

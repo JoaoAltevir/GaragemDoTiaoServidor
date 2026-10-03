@@ -19,7 +19,9 @@ public class SessionService {
     }
 
     public void insertSessionUsers(List<SessionUser> users){
-        
+        for (SessionUser sessionUser : users){
+            Session.insertSessionUser(sessionUser);
+        }
     }
 
     public SessionUser isLogged(String username) {

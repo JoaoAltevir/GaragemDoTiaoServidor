@@ -89,7 +89,7 @@ public class ClientService extends Thread{
             }
 
             if (response != null){
-                saida.println("Resposta enviada: " + response.toString());
+                saida.println(response.toString());
                 socket.close();
             }
     

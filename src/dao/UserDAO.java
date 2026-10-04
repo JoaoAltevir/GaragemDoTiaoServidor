@@ -13,7 +13,7 @@ public class UserDAO {
 
     public void register(User user) throws SQLException{
 
-        String sql = "INSERT INTO user (username, name, password, role) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO usuario (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -66,7 +66,7 @@ public class UserDAO {
 
     public void login(String username, String token, String ipAddress) throws SQLException{
 
-        String sql = "INSERT INTO sessao_usuario (user_username, token, ip_address) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO sessao_usuario (username, token, ip_address) VALUES (?, ?, ?)";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){

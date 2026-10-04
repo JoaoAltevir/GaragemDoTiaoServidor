@@ -47,6 +47,7 @@ public class HomeWindow extends JFrame {
 	public HomeWindow(int port, MainWindow main) {
 
 		this.mainWindow = main;
+		this.sessionService = new SessionService();
 		this.serverService = new ServerService(port, this);
 		this.userService = new UserService(this);
 

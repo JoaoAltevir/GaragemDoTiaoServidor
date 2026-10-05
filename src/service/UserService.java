@@ -361,12 +361,18 @@ public class UserService {
     }
 
     private boolean registerValidation(String name, String password, String username){
-       
-        validadorNome(name);
-        validadorUsername(username);
-        validadorSenha(password);
 
-        return true;
+        boolean valid = true;
+        if(!validadorNome(name)){
+            valid = false;
+            if(!validadorUsername(username)){
+                valid = false;
+                if (!validadorSenha(password)){
+                    valid = false;
+            }
+        }
+
+        return valid;
     }
 
     private boolean validadorSenha(String password) throws IllegalArgumentException, PatternSyntaxException {

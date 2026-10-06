@@ -48,6 +48,7 @@ public class UserService {
                 res.addProperty("message", "Usuário já existe!");
                 return res;
             }
+
             if(!isValid){
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos inválidos!");
@@ -190,6 +191,7 @@ public class UserService {
             res.add("data", userData);
 
             return res;
+
         }catch(IllegalArgumentException e){
 
             res.addProperty("statusCode", 400);
@@ -253,7 +255,9 @@ public class UserService {
 
             res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro de inserção: " + e.getMessage());
+
             return res;
+
         }catch(SQLException e){
             res.addProperty("statusCode", 500);
             res.addProperty("message", "Erro de banco: " + e.getMessage());
@@ -275,6 +279,7 @@ public class UserService {
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deletado com sucesso!");
             return res;
+
         }catch(SQLException e){
 
             res.addProperty("statusCode", 500);
@@ -348,12 +353,11 @@ public class UserService {
 
     }
     
-    private boolean isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
+    private void isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
 
         String username = Session.findByToken(token);
         if(username != null){
-            if(username.equals(usernameRequested)) return true;
-            else throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
+            if(!username.equals(usernameRequested)) throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
         }else{
             throw new IllegalArgumentException("Token inválido!");
         }
@@ -369,6 +373,7 @@ public class UserService {
                 valid = false;
                 if (!validadorSenha(password)){
                     valid = false;
+                }
             }
         }
 

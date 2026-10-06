@@ -38,6 +38,7 @@ public class UserDAO {
         String sql = "SELECT * FROM usuario WHERE username = ?";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
+        
          ){
         
             stmt.setString(1, username);
@@ -55,7 +56,7 @@ public class UserDAO {
                 return user;
             }
 
-            return user;
+            return null;
 
         }catch(SQLException e){
             throw e;
@@ -70,10 +71,9 @@ public class UserDAO {
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-            
-            UUID uuid = UUID.fromString(token);
+        
             stmt.setString(1, username);
-            stmt.setObject(2, uuid);
+            stmt.setString(2, token);
             stmt.setString(3, ipAddress);
             stmt.executeUpdate();
 
@@ -91,9 +91,8 @@ public class UserDAO {
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-            
-            UUID uuid = UUID.fromString(token);
-            stmt.setObject(1, uuid);
+    
+            stmt.setString(1, token);
             stmt.executeUpdate();
 
         }catch(SQLException e){

@@ -38,10 +38,16 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
+            System.out.println("1");
+
             
             boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
+
+            System.out.println("2");
             
             User userExist = this.bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
+
+            System.out.println("3");
 
             if(userExist != null){
                 res.addProperty("statusCode", 400);
@@ -55,18 +61,22 @@ public class UserService {
                 return res;
             }
 
+            System.out.println("4");
             User user = new User();
             user.setName(name);
             user.setPassword(password);
             user.setUsername(username);
 
+
             this.bancoUser.register(user);
 
+            System.out.println("6");
             res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
 
             Session.insertUser(user);
 
+            System.out.println("inseriu na lista de usuários cadastrados em memória!");
             return res;
 
         } catch (SQLException e) {

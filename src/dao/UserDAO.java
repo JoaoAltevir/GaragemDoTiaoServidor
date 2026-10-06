@@ -12,13 +12,11 @@ import java.util.ArrayList;
 public class UserDAO {
 
     public void register(User user) throws SQLException{
-
         String sql = "INSERT INTO usuario (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-        
             stmt.setString(1, user.getUsername());
             stmt.setString(2, user.getName());
             stmt.setString(3, user.getPassword());
@@ -221,7 +219,7 @@ public class UserDAO {
 
     public String isPassword (String username) throws SQLException {
 
-        String sql = "SELECT password FROM user WHERE username = ?";
+        String sql = "SELECT password FROM usuario WHERE username = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);

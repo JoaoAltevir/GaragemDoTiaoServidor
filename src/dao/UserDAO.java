@@ -141,15 +141,20 @@ public class UserDAO {
     }
 
     public void deleteUser (String username) throws SQLException {
-
+        
+        String sqlSessao = "DELETE FROM sessao_usuario WHERE username = ?";
         String sql = "DELETE FROM usuario WHERE username = ?";
         try(
             Connection conn = BancoDados.conectar();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmtSessao = conn.prepareStatement(sqlSessao);
+            PreparedStatement stmtUsuario = conn.prepareStatement(sql);
         ){
 
-            stmt.setString(1, username);
-            stmt.executeUpdate();
+            stmtSessao.setString(1, username);
+            stmtSessao.executeUpdate();
+
+            stmtUsuario.setString(1, username);
+            stmtUsuario.executeUpdate();
 
         }catch (SQLException e){
             throw e;

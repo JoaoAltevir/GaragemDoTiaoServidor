@@ -38,34 +38,45 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
+            System.out.println("1");
+
             
             boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
+
+            System.out.println("2");
             
             User userExist = this.bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
+
+            System.out.println("3");
 
             if(userExist != null){
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Usuário já existe!");
                 return res;
             }
+
             if(!isValid){
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos inválidos!");
                 return res;
             }
 
+            System.out.println("4");
             User user = new User();
             user.setName(name);
             user.setPassword(password);
             user.setUsername(username);
 
+
             this.bancoUser.register(user);
 
+            System.out.println("6");
             res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso!");
 
             Session.insertUser(user);
 
+            System.out.println("inseriu na lista de usuários cadastrados em memória!");
             return res;
 
         } catch (SQLException e) {
@@ -190,6 +201,7 @@ public class UserService {
             res.add("data", userData);
 
             return res;
+
         }catch(IllegalArgumentException e){
 
             res.addProperty("statusCode", 400);
@@ -253,7 +265,9 @@ public class UserService {
 
             res.addProperty("statusCode", 400);
             res.addProperty("message", "Erro de inserção: " + e.getMessage());
+
             return res;
+
         }catch(SQLException e){
             res.addProperty("statusCode", 500);
             res.addProperty("message", "Erro de banco: " + e.getMessage());
@@ -275,6 +289,7 @@ public class UserService {
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deletado com sucesso!");
             return res;
+
         }catch(SQLException e){
 
             res.addProperty("statusCode", 500);
@@ -348,12 +363,11 @@ public class UserService {
 
     }
     
-    private boolean isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
+    private void isValidTokenByUsername (String token, String usernameRequested) throws IllegalArgumentException{
 
         String username = Session.findByToken(token);
         if(username != null){
-            if(username.equals(usernameRequested)) return true;
-            else throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
+            if(!username.equals(usernameRequested)) throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
         }else{
             throw new IllegalArgumentException("Token inválido!");
         }
@@ -369,6 +383,7 @@ public class UserService {
                 valid = false;
                 if (!validadorSenha(password)){
                     valid = false;
+                }
             }
         }
 

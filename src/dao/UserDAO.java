@@ -12,13 +12,11 @@ import java.util.ArrayList;
 public class UserDAO {
 
     public void register(User user) throws SQLException{
-
         String sql = "INSERT INTO usuario (username, name, password, role) VALUES (?, ?, ?, ?)";
         try(
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-        
             stmt.setString(1, user.getUsername());
             stmt.setString(2, user.getName());
             stmt.setString(3, user.getPassword());
@@ -38,6 +36,7 @@ public class UserDAO {
         String sql = "SELECT * FROM usuario WHERE username = ?";
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
+        
          ){
         
             stmt.setString(1, username);
@@ -55,7 +54,7 @@ public class UserDAO {
                 return user;
             }
 
-            return user;
+            return null;
 
         }catch(SQLException e){
             throw e;
@@ -70,10 +69,9 @@ public class UserDAO {
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-            
-            UUID uuid = UUID.fromString(token);
+        
             stmt.setString(1, username);
-            stmt.setObject(2, uuid);
+            stmt.setString(2, token);
             stmt.setString(3, ipAddress);
             stmt.executeUpdate();
 
@@ -91,9 +89,8 @@ public class UserDAO {
         try(Connection conn = BancoDados.conectar();
         PreparedStatement stmt = conn.prepareStatement(sql);
          ){
-            
-            UUID uuid = UUID.fromString(token);
-            stmt.setObject(1, uuid);
+    
+            stmt.setString(1, token);
             stmt.executeUpdate();
 
         }catch(SQLException e){
@@ -144,15 +141,20 @@ public class UserDAO {
     }
 
     public void deleteUser (String username) throws SQLException {
-
+        
+        String sqlSessao = "DELETE FROM sessao_usuario WHERE username = ?";
         String sql = "DELETE FROM usuario WHERE username = ?";
         try(
             Connection conn = BancoDados.conectar();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmtSessao = conn.prepareStatement(sqlSessao);
+            PreparedStatement stmtUsuario = conn.prepareStatement(sql);
         ){
 
-            stmt.setString(1, username);
-            stmt.executeUpdate();
+            stmtSessao.setString(1, username);
+            stmtSessao.executeUpdate();
+
+            stmtUsuario.setString(1, username);
+            stmtUsuario.executeUpdate();
 
         }catch (SQLException e){
             throw e;
@@ -222,7 +224,7 @@ public class UserDAO {
 
     public String isPassword (String username) throws SQLException {
 
-        String sql = "SELECT password FROM user WHERE username = ?";
+        String sql = "SELECT password FROM usuario WHERE username = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);

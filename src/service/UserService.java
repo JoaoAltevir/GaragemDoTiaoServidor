@@ -123,10 +123,13 @@ public class UserService {
                 String token = UUID.randomUUID().toString();
 
                 this.bancoUser.login(user.getUsername(), token, ipAddress);
-    
+                
+                JsonObject data = new JsonObject();
+                data.addProperty("token", token);
+
                 res.addProperty("statusCode", 200);
                 res.addProperty("message", "Login realizado com sucesso!");
-                res.addProperty("token", token);
+                res.add("data", data);
 
                 SessionUser sessionUser = new SessionUser();
                 sessionUser.setUsername(user.getUsername());

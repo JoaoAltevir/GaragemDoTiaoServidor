@@ -21,7 +21,7 @@ Se ainda não tiver baixado o projeto, abra o seu terminal e faça o clone:
 
 ```bash
 git clone [https://github.com/JoaoAltevir/GaragemDoTiaoServidor.git](https://github.com/JoaoAltevir/GaragemDoTiaoServidor.git)
-
+```
 ### 2. Configurando o Banco de Dados (via XAMPP)
 
 Todo o processo de estruturação do banco de dados será feito utilizando o painel do XAMPP e o phpMyAdmin:

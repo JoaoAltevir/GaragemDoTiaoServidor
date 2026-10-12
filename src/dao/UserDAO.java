@@ -229,12 +229,15 @@ public class UserDAO {
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
         ) {
-
-            st.setString(1, username);
-            ResultSet rs = st.executeQuery();
-
-
-            return rs.getString("password");
+        	st.setString(1, username);
+            
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("password");
+                } else {
+                    throw new SQLException("Usuário não encontrado.");
+                }
+            }
 
         } catch (Exception e) {
             throw new SQLException(e);

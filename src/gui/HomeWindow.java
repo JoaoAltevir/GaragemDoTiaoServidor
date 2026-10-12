@@ -125,6 +125,11 @@ public class HomeWindow extends JFrame {
 		
 		btn_update = new JButton("Atualizar");
 		btn_update.setBounds(216, 299, 89, 23);
+		btn_update.addActionListener(new ActionListener(){
+			public void actionPerformed(ActionEvent e) {
+				
+			}
+		});
 		contentPane.add(btn_update);
 		
 		table_users.getColumnModel().getColumn(3).setCellRenderer(new StatusRenderer());

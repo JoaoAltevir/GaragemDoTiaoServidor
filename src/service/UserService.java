@@ -38,16 +38,16 @@ public class UserService {
             String password = dataObj.get("password").getAsString();
             String username = dataObj.get("username").getAsString();
 
-            System.out.println("1");
+            
 
             
             boolean isValid = registerValidation(name, password, username); //testa os campos de entrada para ver se são válidos...
 
-            System.out.println("2");
+            
             
             User userExist = this.bancoUser.getUserByUsername(username); //caso passe da primeira validação, procura no banco pra ver se usuário já existe...
 
-            System.out.println("3");
+           
 
             if(userExist != null){
                 res.addProperty("statusCode", 400);
@@ -244,7 +244,7 @@ public class UserService {
 
 
     public JsonObject updateUserPassword(JsonObject req){
-    
+    	boolean valid;
         try{
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
@@ -256,14 +256,23 @@ public class UserService {
 
             isValidTokenByUsername(token, username);
             isOldPassword(oldPassword, username);
-            validadorSenha(newPassword);
-
-            bancoUser.updateUserPassword(username, newPassword);
-
-            res.addProperty("statusCode", 200);
-            res.addProperty("message", "Senha Atualizada com sucesso!");
-
+            valid = validadorSenha(newPassword);
+            
+            if(valid) {
+            	
+            	bancoUser.updateUserPassword(username, newPassword);
+            	
+            	res.addProperty("statusCode", 200);
+            	res.addProperty("message", "Senha Atualizada com sucesso!");
+            	
+	            return res;
+            }
+            
+            res.addProperty("statusCode: ", 400);
+            res.addProperty("message: ", "Senha inválida!");
+            
             return res;
+
         }catch(IllegalArgumentException e){
 
             res.addProperty("statusCode", 400);
@@ -379,18 +388,13 @@ public class UserService {
 
     private boolean registerValidation(String name, String password, String username){
 
-        boolean valid = true;
-        if(!validadorNome(name)){
-            valid = false;
-            if(!validadorUsername(username)){
-                valid = false;
-                if (!validadorSenha(password)){
-                    valid = false;
-                }
-            }
-        }
 
-        return valid;
+        boolean isNameValid = validadorNome(name);
+        boolean isUsernameValid = validadorUsername(username);
+        boolean isPasswordValid = validadorSenha(password);
+
+    // Só retorna true se todas as três validações forem verdadeiras
+        return isNameValid && isUsernameValid && isPasswordValid;
     }
 
     private boolean validadorSenha(String password) throws IllegalArgumentException, PatternSyntaxException {

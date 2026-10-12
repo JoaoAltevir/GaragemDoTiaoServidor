@@ -16,6 +16,10 @@ public class Session {
         Session.users.add(user);
     }
 
+    public static void removeUser(String username){
+        users.removeIf(user -> user.getUsername().equals(username));
+    }
+
     public static List<SessionUser> getSessionUsers() {
         return sessionUsers;
     }
@@ -33,6 +37,16 @@ public class Session {
             if (sessionUser.getToken().equals(token)) {
                 removeSessionUser(sessionUser.getUsername());
                 return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean deleteUser(String username){
+        for(User user: users){
+            if(user.getUsername().equals(username)){
+                removeUser(username);
+                removeSessionUser(username);
             }
         }
         return false;

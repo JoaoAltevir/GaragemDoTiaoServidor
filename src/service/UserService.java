@@ -231,6 +231,15 @@ public class UserService {
 
             isValidTokenByUsername(token, username);
 
+            if(!Session.deleteUser(username)){
+
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Usuário não existe!");
+
+                return res;
+                
+            }
+
             bancoUser.updateUserName(username, name);        
             
             res.addProperty("statusCode", 200);

@@ -201,6 +201,7 @@ public class UserService {
             userData.addProperty("username", user.getUsername());
 
             res.addProperty("statusCode", 200);
+			res.addProperty("message", "Usuário encontrado com sucesso!")
             res.add("data", userData);
 
             return res;

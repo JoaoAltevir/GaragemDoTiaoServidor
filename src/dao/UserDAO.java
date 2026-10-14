@@ -103,14 +103,14 @@ public class UserDAO {
 
     public void updateUserName(String username, String name) throws SQLException {
         
-        String sql = "UPDATE usuario SET username = ?  WHERE username = ?";
+        String sql = "UPDATE usuario SET name = ?  WHERE username = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
         ){
             
-            st.setString(1, username);
-            st.setString(2, name);
+            st.setString(1, name);
+            st.setString(2, username);
 
             st.executeUpdate();
 

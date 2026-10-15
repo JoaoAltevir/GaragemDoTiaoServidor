@@ -201,7 +201,7 @@ public class UserService {
             userData.addProperty("username", user.getUsername());
 
             res.addProperty("statusCode", 200);
-			res.addProperty("message", "Usuário encontrado com sucesso!")
+			res.addProperty("message", "Usuário encontrado com sucesso!");
             res.add("data", userData);
 
             return res;
@@ -232,21 +232,15 @@ public class UserService {
 
             isValidTokenByUsername(token, username);
 
-            if(!Session.deleteUser(username)){
-
-                res.addProperty("statusCode", 400);
-                res.addProperty("message", "Usuário não existe!");
-
-                return res;
-                
-            }
-
-            bancoUser.updateUserName(username, name);        
+            int bdRes = bancoUser.updateUserName(username, name);      
+            System.out.println(bdRes);
             
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Nome do usuário atualizado com sucesso!");
 
             return res;
+            
+            
         }catch(Exception e){
             return res;
         }

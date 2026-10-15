@@ -101,7 +101,7 @@ public class UserDAO {
 
     }
 
-    public void updateUserName(String username, String name) throws SQLException {
+    public int updateUserName(String username, String name) throws SQLException {
         
         String sql = "UPDATE usuario SET name = ?  WHERE username = ?";
         try (
@@ -112,9 +112,9 @@ public class UserDAO {
             st.setString(1, name);
             st.setString(2, username);
 
-            st.executeUpdate();
+            return st.executeUpdate();
 
-            
+ 
         } catch (Exception e) {
             throw new SQLException("Erro ao conectar no banco", e);
         }

@@ -48,6 +48,7 @@ public class UserDAO {
                 user.setUsername(rs.getString("username"));
                 user.setPassword(rs.getString("password"));
                 user.setName(rs.getString("name"));
+                user.setRole(rs.getString("role"));
                 user.setCreatedAt(rs.getTimestamp("created_at"));
                 user.setUpdatedAt(rs.getTimestamp("updated_at"));
 
@@ -180,6 +181,7 @@ public class UserDAO {
                 u.setUsername(rs.getString("username"));
                 u.setName(rs.getString("name"));
                 u.setPassword(rs.getString("password"));
+                u.setRole(rs.getString("role"));
                 u.setCreatedAt(rs.getTimestamp("created_at"));
                 u.setUpdatedAt(rs.getTimestamp("updated_at"));
 
@@ -209,6 +211,7 @@ public class UserDAO {
                 SessionUser u = new SessionUser();
                 u.setUsername(rs.getString("username"));
                 u.setToken(rs.getString("token"));
+                u.setIpAddress(rs.getString("ip_address"));
 
                 users.add(u);
             

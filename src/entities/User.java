@@ -48,6 +48,10 @@ public class User {
 		this.name = name;
 	}
 
+	public void setRole(String role) {
+		this.role = role;
+	}
+
 	public void setCreatedAt(Timestamp createdAt) {
 		this.createdAt = createdAt;
 	}

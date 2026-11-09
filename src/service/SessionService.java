@@ -1,6 +1,8 @@
 package service;
 
 import entities.User;
+import entities.Vaga;
+import entities.Vehicle;
 import entities.SessionUser;
 import entities.Session;
 
@@ -8,18 +10,26 @@ import java.util.List;
 
 public class SessionService {
 
-    public List<User> getAllUsers(){
+    public List<User> getAllUsers() {
         return Session.getUsers();
     }
 
-    public void insertUsers(List<User> users){
-        for( User user : users){
+    public List<Vaga> getAllVagas() {
+        return Session.getVagas();
+    }
+
+    public List<Vehicle> getAllVehicles() {
+        return Session.getVehicles();
+    }
+
+    public void insertUsers(List<User> users) {
+        for (User user : users) {
             Session.insertUser(user);
         }
     }
 
-    public void insertSessionUsers(List<SessionUser> users){
-        for (SessionUser sessionUser : users){
+    public void insertSessionUsers(List<SessionUser> users) {
+        for (SessionUser sessionUser : users) {
             Session.insertSessionUser(sessionUser);
         }
     }
@@ -33,6 +43,5 @@ public class SessionService {
         }
         return null;
     }
-
 
 }

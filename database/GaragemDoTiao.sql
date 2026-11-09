@@ -44,7 +44,39 @@ CREATE TABLE `usuario` (
   `username` varchar(20) NOT NULL,
   `name` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` varchar(20) NOT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'user',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `veiculo`
+--
+
+CREATE TABLE `veiculo` (
+  `license_plate` varchar(20) NOT NULL,
+  `brand` varchar(50) NOT NULL,
+  `model` varchar(50) NOT NULL,
+  `type` enum('eletrico','combustao') NOT NULL,
+  `username` varchar(20) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `vaga`
+--
+
+CREATE TABLE `vaga` (
+  `spot_name` varchar(20) NOT NULL,
+  `floor` int(11) NOT NULL,
+  `type` enum('eletrico','combustao') NOT NULL,
+  `status` enum('disponivel','fora_de_servico','ocupada') NOT NULL DEFAULT 'disponivel',
+  `license_plate` varchar(20) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -67,6 +99,20 @@ ALTER TABLE `usuario`
   ADD PRIMARY KEY (`username`);
 
 --
+-- Índices de tabela `veiculo`
+--
+ALTER TABLE `veiculo`
+  ADD PRIMARY KEY (`license_plate`),
+  ADD KEY `fk_username_veiculo` (`username`);
+
+--
+-- Índices de tabela `vaga`
+--
+ALTER TABLE `vaga`
+  ADD PRIMARY KEY (`spot_name`),
+  ADD KEY `fk_license_plate_vaga` (`license_plate`);
+
+--
 -- Restrições para tabelas despejadas
 --
 
@@ -74,7 +120,19 @@ ALTER TABLE `usuario`
 -- Restrições para tabelas `sessao_usuario`
 --
 ALTER TABLE `sessao_usuario`
-  ADD CONSTRAINT `fk_username_session` FOREIGN KEY (`username`) REFERENCES `usuario` (`username`);
+  ADD CONSTRAINT `fk_username_session` FOREIGN KEY (`username`) REFERENCES `usuario` (`username`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Restrições para tabelas `veiculo`
+--
+ALTER TABLE `veiculo`
+  ADD CONSTRAINT `fk_username_veiculo` FOREIGN KEY (`username`) REFERENCES `usuario` (`username`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Restrições para tabelas `vaga`
+--
+ALTER TABLE `vaga`
+  ADD CONSTRAINT `fk_license_plate_vaga` FOREIGN KEY (`license_plate`) REFERENCES `veiculo` (`license_plate`) ON DELETE SET NULL ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

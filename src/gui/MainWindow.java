@@ -1,7 +1,6 @@
 package gui;
 
 import java.awt.EventQueue;
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -15,6 +14,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.JTextField;
 import javax.swing.JLabel;
 import javax.swing.JButton;
+import javax.swing.JOptionPane;
 import javax.swing.BorderFactory;
 import javax.swing.SwingConstants;
 
@@ -63,6 +63,24 @@ public class MainWindow extends JFrame {
 		home.setVisible(true);
 		this.setVisible(false);
 		
+	}
+
+	private void iniciarComValidacao() {
+		String portText = textField.getText() != null ? textField.getText().trim() : "";
+		if (portText.isEmpty()) {
+			JOptionPane.showMessageDialog(this, "Por favor, informe a porta do servidor.", "Campo Obrigatório", JOptionPane.WARNING_MESSAGE);
+			return;
+		}
+		try {
+			int port = Integer.parseInt(portText);
+			if (port < 1 || port > 65535) {
+				JOptionPane.showMessageDialog(this, "Informe uma porta válida entre 1 e 65535.", "Porta Inválida", JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			abrirHome(port);
+		} catch (NumberFormatException ex) {
+			JOptionPane.showMessageDialog(this, "A porta deve ser um número inteiro válido.", "Formato Inválido", JOptionPane.ERROR_MESSAGE);
+		}
 	}
 	
 	public void initComponents() {
@@ -119,6 +137,7 @@ public class MainWindow extends JFrame {
 			BorderFactory.createLineBorder(new Color(205, 213, 222)),
 			BorderFactory.createEmptyBorder(6, 9, 6, 9)
 		));
+		textField.addActionListener(e -> iniciarComValidacao());
 		cardConstraints.gridy = 3;
 		cardConstraints.insets = new Insets(0, 0, 18, 0);
 		card.add(textField, cardConstraints);
@@ -129,7 +148,7 @@ public class MainWindow extends JFrame {
 		btn_init.setBackground(ACCENT);
 		btn_init.setFocusPainted(false);
 		btn_init.setBorder(BorderFactory.createEmptyBorder(10, 22, 10, 22));
-		btn_init.addActionListener(e -> abrirHome(Integer.parseInt(textField.getText())));
+		btn_init.addActionListener(e -> iniciarComValidacao());
 		cardConstraints.gridy = 4;
 		cardConstraints.fill = GridBagConstraints.NONE;
 		cardConstraints.anchor = GridBagConstraints.CENTER;

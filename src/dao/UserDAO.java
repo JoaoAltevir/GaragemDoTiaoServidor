@@ -135,14 +135,17 @@ public class UserDAO {
 
             st.executeUpdate();
 
-            
-        } catch (Exception e) {
-            // TODO: handle exception
+        } catch (SQLException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new SQLException("Erro ao conectar no banco", e);
         }
     }
 
-    public void deleteUser (String username) throws SQLException {
+    public int deleteUser (String username) throws SQLException {
         
+        String sqlVaga = "UPDATE vaga SET status = 'disponivel', license_plate = NULL WHERE license_plate IN (SELECT license_plate FROM veiculo WHERE username = ?)";
+        String sqlVeiculo = "DELETE FROM veiculo WHERE username = ?";
         String sqlSessao = "DELETE FROM sessao_usuario WHERE username = ?";
         String sql = "DELETE FROM usuario WHERE username = ?";
         try(
@@ -150,16 +153,44 @@ public class UserDAO {
             PreparedStatement stmtSessao = conn.prepareStatement(sqlSessao);
             PreparedStatement stmtUsuario = conn.prepareStatement(sql);
         ){
+            try (PreparedStatement stmtVaga = conn.prepareStatement(sqlVaga);
+                 PreparedStatement stmtVeiculo = conn.prepareStatement(sqlVeiculo)) {
+                stmtVaga.setString(1, username);
+                stmtVaga.executeUpdate();
+
+                stmtVeiculo.setString(1, username);
+                stmtVeiculo.executeUpdate();
+            } catch (SQLException ignored) {
+                // Caso as tabelas de vaga/veiculo ainda nao existam no ambiente
+            }
 
             stmtSessao.setString(1, username);
             stmtSessao.executeUpdate();
 
             stmtUsuario.setString(1, username);
-            stmtUsuario.executeUpdate();
+            return stmtUsuario.executeUpdate();
 
         }catch (SQLException e){
             throw e;
         }catch (IOException e) {
+            throw new SQLException("Erro ao conectar no banco", e);
+        }
+    }
+
+    public String getUsernameByToken(String token) throws SQLException {
+        String sql = "SELECT username FROM sessao_usuario WHERE token = ?";
+        try (
+            Connection conn = BancoDados.conectar();
+            PreparedStatement st = conn.prepareStatement(sql);
+        ) {
+            st.setString(1, token);
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("username");
+                }
+                return null;
+            }
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar no banco", e);
         }
     }

@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,7 +21,11 @@ public class VehicleDAO {
         ) {
             stmt.setString(1, vehicle.getLicensePlate());
             stmt.setString(2, vehicle.getBrand());
-            stmt.setString(3, vehicle.getModel());
+            if (vehicle.getModel() == null) {
+                stmt.setNull(3, Types.VARCHAR);
+            } else {
+                stmt.setString(3, vehicle.getModel());
+            }
             stmt.setString(4, vehicle.getType());
             stmt.setString(5, vehicle.getUsername());
             stmt.executeUpdate();
@@ -98,7 +103,11 @@ public class VehicleDAO {
             PreparedStatement stmt = conn.prepareStatement(sql);
         ) {
             stmt.setString(1, vehicle.getBrand());
-            stmt.setString(2, vehicle.getModel());
+            if (vehicle.getModel() == null) {
+                stmt.setNull(2, Types.VARCHAR);
+            } else {
+                stmt.setString(2, vehicle.getModel());
+            }
             stmt.setString(3, vehicle.getType());
             stmt.setString(4, vehicle.getLicensePlate());
             return stmt.executeUpdate();
@@ -110,16 +119,11 @@ public class VehicleDAO {
     }
 
     public int deleteVehicle(String licensePlate) throws SQLException {
-        String sqlFreeSpot = "UPDATE vaga SET status = 'disponivel', license_plate = NULL WHERE license_plate = ?";
         String sqlDelete = "DELETE FROM veiculo WHERE license_plate = ?";
         try (
             Connection conn = BancoDados.conectar();
-            PreparedStatement stmtFreeSpot = conn.prepareStatement(sqlFreeSpot);
             PreparedStatement stmtDelete = conn.prepareStatement(sqlDelete);
         ) {
-            stmtFreeSpot.setString(1, licensePlate);
-            stmtFreeSpot.executeUpdate();
-
             stmtDelete.setString(1, licensePlate);
             return stmtDelete.executeUpdate();
         } catch (SQLException e) {

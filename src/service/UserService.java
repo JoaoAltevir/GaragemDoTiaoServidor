@@ -9,6 +9,7 @@ import entities.Session;
 import entities.User;
 import entities.SessionUser;
 import dao.UserDAO;
+import dao.VagaDAO;
 import java.util.UUID;
 import java.util.regex.PatternSyntaxException;
 import java.util.List;
@@ -17,6 +18,7 @@ import gui.HomeWindow;
 public class UserService {
 
     private final UserDAO bancoUser = new UserDAO();
+    private final VagaDAO vagaDAO = new VagaDAO();
     private HomeWindow home;
 
     public UserService(HomeWindow home) {
@@ -25,7 +27,27 @@ public class UserService {
 
     public UserService() {}
 
-    public JsonObject register(JsonObject req) {
+    public synchronized void ensureDefaultAdmin() {
+        try {
+            User existingAdmin = bancoUser.getUserByUsername("admin");
+            if (existingAdmin == null) {
+                User admin = new User();
+                admin.setName("admin");
+                admin.setUsername("admin");
+                admin.setPassword("Admin123!");
+                admin.setRole("admin");
+                bancoUser.register(admin);
+                Session.insertUser(admin);
+            } else if (!"admin".equalsIgnoreCase(existingAdmin.getRole())) {
+                existingAdmin.setRole("admin");
+                Session.insertUser(existingAdmin);
+            }
+        } catch (Exception e) {
+            System.out.println("Aviso ao verificar admin padrão: " + e.getMessage());
+        }
+    }
+
+    public synchronized JsonObject register(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -37,60 +59,96 @@ public class UserService {
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
 
-            if (!hasNonBlankString(dataObj, "name") || !hasNonBlankString(dataObj, "password") || !hasNonBlankString(dataObj, "username")) {
+            boolean hasRole = dataObj.has("role") && !dataObj.get("role").isJsonNull();
+            boolean hasToken = dataObj.has("token") && !dataObj.get("token").isJsonNull();
+
+            String role = "user";
+
+            if (hasRole && !hasToken) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            String name = dataObj.get("name").getAsString();
-            String password = dataObj.get("password").getAsString();
-            String username = dataObj.get("username").getAsString();
-
-            String role = "user";
-            if (dataObj.has("role") && !dataObj.get("role").isJsonNull()) {
-                String requestedRole = dataObj.get("role").getAsString().trim().toLowerCase();
-                if (!requestedRole.isEmpty()) {
-                    if (!"admin".equals(requestedRole) && !"user".equals(requestedRole)) {
-                        res.addProperty("statusCode", 400);
-                        res.addProperty("message", "Papel (role) inválido!");
-                        res.add("data", JsonNull.INSTANCE);
-                        return res;
-                    }
-                    role = requestedRole;
-                }
-            }
-
-            if ("admin".equals(role)) {
-                if (!hasNonBlankString(dataObj, "token")) {
-                    res.addProperty("statusCode", 401);
-                    res.addProperty("message", "Não autorizado!");
-                    res.add("data", JsonNull.INSTANCE);
-                    return res;
-                }
-                String token = dataObj.get("token").getAsString();
-                User loggedUser = getAuthenticatedUser(token);
-                if (loggedUser == null || !"admin".equalsIgnoreCase(loggedUser.getRole())) {
-                    res.addProperty("statusCode", 401);
-                    res.addProperty("message", "Não autorizado!");
-                    res.add("data", JsonNull.INSTANCE);
-                    return res;
-                }
-            }
-
-            boolean isValid = registerValidation(name, password, username);
-            if (!isValid) {
+            if (!hasRole && hasToken) {
                 res.addProperty("statusCode", 400);
-                res.addProperty("message", "Campos inválidos!");
+                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            User userExist = this.bancoUser.getUserByUsername(username);
-            if (userExist != null) {
-                res.addProperty("statusCode", 409);
-                res.addProperty("message", "Usuário já existe!");
+            if (hasRole && hasToken) {
+                String requestedRole = dataObj.get("role").getAsString().trim();
+                String token = dataObj.get("token").getAsString().trim();
+
+                if (!"admin".equals(requestedRole) && !"user".equals(requestedRole)) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "O campo role não está no padrão esperado.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+
+                if (token.isEmpty()) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+
+                User loggedUser = getAuthenticatedUser(token);
+                if (loggedUser == null) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Sessão expirada ou encerrada.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+
+                if (!"admin".equalsIgnoreCase(loggedUser.getRole())) {
+                    res.addProperty("statusCode", 401);
+                    if ("admin".equals(requestedRole)) {
+                        res.addProperty("message", "Operação não autorizada. Apenas administradores podem cadastrar administradores.");
+                    } else {
+                        res.addProperty("message", "Operação não autorizada");
+                    }
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+
+                role = requestedRole;
+            }
+
+            String name = dataObj.has("name") && !dataObj.get("name").isJsonNull() ? dataObj.get("name").getAsString() : null;
+            String username = dataObj.has("username") && !dataObj.get("username").isJsonNull() ? dataObj.get("username").getAsString() : null;
+            String password = dataObj.has("password") && !dataObj.get("password").isJsonNull() ? dataObj.get("password").getAsString() : null;
+
+            if (username != null && !username.trim().isEmpty()) {
+                User userExist = this.bancoUser.getUserByUsername(username);
+                if (userExist != null) {
+                    res.addProperty("statusCode", 409);
+                    res.addProperty("message", "O username já está em uso.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+            }
+
+            if (name == null || !validadorNome(name)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "O campo name não está no padrão esperado.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (username == null || !validadorUsername(username)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "O campo username não está no padrão esperado.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (password == null || !validadorSenha(password)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "O campo password não está no padrão esperado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -105,6 +163,7 @@ public class UserService {
 
             res.addProperty("statusCode", 201);
             res.addProperty("message", "Usuário criado com sucesso");
+            res.add("data", JsonNull.INSTANCE);
 
             Session.insertUser(user);
 
@@ -112,7 +171,7 @@ public class UserService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
 
@@ -124,13 +183,13 @@ public class UserService {
 
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao criar usuário: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject login(JsonObject req, String ipAddress) {
+    public synchronized JsonObject login(JsonObject req, String ipAddress) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -155,45 +214,96 @@ public class UserService {
 
             if (user == null || !user.getPassword().equals(password)) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Credenciais inválidas!");
+                res.addProperty("message", "Usuario ou senhas inválidos");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            if (user.getUsername().equals(username) && user.getPassword().equals(password)) {
-                String token = UUID.randomUUID().toString();
+            String token = UUID.randomUUID().toString();
 
-                this.bancoUser.login(user.getUsername(), token, ipAddress);
+            this.bancoUser.login(user.getUsername(), token, ipAddress);
 
-                JsonObject data = new JsonObject();
-                data.addProperty("token", token);
+            SessionUser sessionUser = new SessionUser();
+            sessionUser.setUsername(user.getUsername());
+            sessionUser.setToken(token);
+            sessionUser.setIpAddress(ipAddress);
+            Session.insertSessionUser(sessionUser);
 
-                res.addProperty("statusCode", 200);
-                res.addProperty("message", "Sucesso no Login");
-                res.add("data", data);
+            System.out.println("[Servidor] Token gerado para '" + user.getUsername() + "': " + token
+                    + " (tokens ativos agora: " + Session.getSessionUsers().size() + ")");
 
-                SessionUser sessionUser = new SessionUser();
-                sessionUser.setUsername(user.getUsername());
-                sessionUser.setToken(token);
-                sessionUser.setIpAddress(ipAddress);
-                Session.insertSessionUser(sessionUser);
+            JsonObject data = new JsonObject();
+            data.addProperty("token", token);
 
-                return res;
-            }
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Login realizado com sucesso");
+            res.add("data", data);
 
-            res.addProperty("statusCode", 400);
-            res.addProperty("message", "Senha ou usuário incorreto!");
+            return res;
+        } catch (SQLException e) {
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao realizar login: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject logout(JsonObject req) {
+    public synchronized JsonObject logout(JsonObject req) {
+        JsonObject res = new JsonObject();
+        try {
+            if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Token de autenticação não fornecido.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            JsonObject dataObj = req.get("data").getAsJsonObject();
+            if (!hasNonBlankString(dataObj, "token")) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Token de autenticação não fornecido.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            String token = dataObj.get("token").getAsString().trim();
+
+            boolean removedFromMemory = Session.logout(token);
+            String dbUsername = this.bancoUser.getUsernameByToken(token);
+            if (!removedFromMemory && dbUsername == null) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            this.bancoUser.logout(token);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Usuário deslogado com sucesso");
+            res.add("data", JsonNull.INSTANCE);
+
+            return res;
+
+        } catch (SQLException e) {
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro interno no servidor.");
+            res.add("data", JsonNull.INSTANCE);
+            return res;
+        } catch (Exception e) {
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Token de autenticação não fornecido.");
+            res.add("data", JsonNull.INSTANCE);
+            return res;
+        }
+    }
+
+    public JsonObject getUser(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -211,79 +321,35 @@ public class UserService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
-
-            if (!Session.logout(token)) {
-                String dbUsername = this.bancoUser.getUsernameByToken(token);
-                if (dbUsername == null) {
-                    res.addProperty("statusCode", 401);
-                    res.addProperty("message", "Sessão encerrada ou não autorizada!");
-                    res.add("data", JsonNull.INSTANCE);
-                    return res;
-                }
-            }
-
-            this.bancoUser.logout(token);
-
-            res.addProperty("statusCode", 200);
-            res.addProperty("message", "Usuário deslogado com sucesso");
-
-            return res;
-
-        } catch (SQLException e) {
-            res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro ao realizar logout: " + e.getMessage());
-            res.add("data", JsonNull.INSTANCE);
-            return res;
-        } catch (Exception e) {
-            res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao realizar logout: " + e.getMessage());
-            res.add("data", JsonNull.INSTANCE);
-            return res;
-        }
-    }
-
-    public JsonObject getUser(JsonObject req) {
-        JsonObject res = new JsonObject();
-        try {
-            if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
-                res.addProperty("statusCode", 400);
-                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
-            JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token") || !hasNonBlankString(dataObj, "username")) {
-                res.addProperty("statusCode", 400);
-                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
-            String token = dataObj.get("token").getAsString();
-            String usernameRequested = dataObj.get("username").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
 
             User loggedUser = getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Token inválido ou não autorizado!");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
-            if (!isAdmin && !loggedUser.getUsername().equals(usernameRequested)) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado!");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
+            String usernameRequested = loggedUser.getUsername();
+
+            if (hasNonBlankString(dataObj, "username")) {
+                String providedUsername = dataObj.get("username").getAsString().trim();
+                if (isAdmin) {
+                    usernameRequested = providedUsername;
+                } else if (!providedUsername.equals(loggedUser.getUsername())) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
             }
 
             User user = this.bancoUser.getUserByUsername(usernameRequested);
             if (user == null) {
                 res.addProperty("statusCode", 404);
-                res.addProperty("message", "Usuário não encontrado!");
+                res.addProperty("message", "Usuário não encontrado");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -299,20 +365,20 @@ public class UserService {
 
             return res;
 
-        } catch (IllegalArgumentException e) {
-            res.addProperty("statusCode", 400);
-            res.addProperty("message", e.getMessage());
+        } catch (SQLException e) {
+            res.addProperty("statusCode", 500);
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
-            res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro ao buscar usuário: " + e.getMessage());
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject updateUserName(JsonObject req) {
+    public synchronized JsonObject updateUserName(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -323,36 +389,38 @@ public class UserService {
             }
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token") || !hasNonBlankString(dataObj, "username") || !hasNonBlankString(dataObj, "name")) {
+            if (!hasNonBlankString(dataObj, "token")) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
-            String username = dataObj.get("username").getAsString();
-            String name = dataObj.get("name").getAsString();
-
-            if (!validadorNome(name)) {
-                res.addProperty("statusCode", 400);
-                res.addProperty("message", "Nome inválido!");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
+            String token = dataObj.get("token").getAsString().trim();
             User loggedUser = getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Token inválido ou não autorizado!");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
+
+            String username = hasNonBlankString(dataObj, "username")
+                    ? dataObj.get("username").getAsString().trim()
+                    : loggedUser.getUsername();
 
             boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
             if (!isAdmin && !loggedUser.getUsername().equals(username)) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado!");
+                res.addProperty("message", "Operação não autorizada");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            String name = dataObj.has("name") && !dataObj.get("name").isJsonNull() ? dataObj.get("name").getAsString() : null;
+            if (name == null || !validadorNome(name)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Nome do usuário fora do padrão");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -360,7 +428,7 @@ public class UserService {
             User targetUser = bancoUser.getUserByUsername(username);
             if (targetUser == null) {
                 res.addProperty("statusCode", 404);
-                res.addProperty("message", "Usuário não encontrado!");
+                res.addProperty("message", "Usuário não encontrado");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -370,30 +438,25 @@ public class UserService {
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Nome do usuário atualizado com sucesso");
-
-            return res;
-
-        } catch (IllegalArgumentException e) {
-            res.addProperty("statusCode", 400);
-            res.addProperty("message", e.getMessage());
             res.add("data", JsonNull.INSTANCE);
+
             return res;
+
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao atualizar nome: " + e.getMessage());
+            res.addProperty("message", "Nome do usuário fora do padrão");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject updateUserPassword(JsonObject req) {
+    public synchronized JsonObject updateUserPassword(JsonObject req) {
         JsonObject res = new JsonObject();
-        boolean valid;
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
                 res.addProperty("statusCode", 400);
@@ -403,35 +466,35 @@ public class UserService {
             }
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token") || !hasNonBlankString(dataObj, "username")
-                    || !hasNonBlankString(dataObj, "newPassword")) {
+            if (!hasNonBlankString(dataObj, "token")) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
-            String username = dataObj.get("username").getAsString();
-            String newPassword = dataObj.get("newPassword").getAsString();
-
+            String token = dataObj.get("token").getAsString().trim();
             User loggedUser = getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado!");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
-            if (!isAdmin && !loggedUser.getUsername().equals(username)) {
+            String username = hasNonBlankString(dataObj, "username")
+                    ? dataObj.get("username").getAsString().trim()
+                    : loggedUser.getUsername();
+
+            boolean isServerGuiAdmin = Session.SERVER_ADMIN_TOKEN.equals(token);
+            if (!isServerGuiAdmin && !loggedUser.getUsername().equals(username)) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado!");
+                res.addProperty("message", "Operação não autorizada");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            if (!isAdmin || hasNonBlankString(dataObj, "oldPassword")) {
+            if (!isServerGuiAdmin || hasNonBlankString(dataObj, "oldPassword")) {
                 if (!hasNonBlankString(dataObj, "oldPassword")) {
                     res.addProperty("statusCode", 400);
                     res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
@@ -444,43 +507,50 @@ public class UserService {
                 User targetUser = bancoUser.getUserByUsername(username);
                 if (targetUser == null) {
                     res.addProperty("statusCode", 404);
-                    res.addProperty("message", "Usuário não encontrado!");
+                    res.addProperty("message", "Usuário não encontrado");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
             }
 
-            valid = validadorSenha(newPassword);
+            String newPassword = dataObj.has("newPassword") && !dataObj.get("newPassword").isJsonNull()
+                    ? dataObj.get("newPassword").getAsString()
+                    : null;
 
-            if (valid) {
-                bancoUser.updateUserPassword(username, newPassword);
-
-                res.addProperty("statusCode", 200);
-                res.addProperty("message", "Senha atualizada com sucesso");
-
+            if (newPassword == null || !validadorSenha(newPassword)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Senha fora do padrão");
+                res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            res.addProperty("statusCode", 400);
-            res.addProperty("message", "Senha inválida!");
+            bancoUser.updateUserPassword(username, newPassword);
+
+            res.addProperty("statusCode", 200);
+            res.addProperty("message", "Senha atualizada com sucesso");
             res.add("data", JsonNull.INSTANCE);
             return res;
 
         } catch (IllegalArgumentException e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro de inserção: " + e.getMessage());
+            res.addProperty("message", e.getMessage());
             res.add("data", JsonNull.INSTANCE);
             return res;
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
+            res.add("data", JsonNull.INSTANCE);
+            return res;
+        } catch (Exception e) {
+            res.addProperty("statusCode", 400);
+            res.addProperty("message", "Senha fora do padrão");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject deleteUser(JsonObject req) {
+    public synchronized JsonObject deleteUser(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -498,13 +568,13 @@ public class UserService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
-            String username = dataObj.get("username").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
+            String username = dataObj.get("username").getAsString().trim();
 
             User loggedUser = getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Token inválido ou não autorizado!");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -512,7 +582,7 @@ public class UserService {
             boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
             if (!isAdmin && !loggedUser.getUsername().equals(username)) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado!");
+                res.addProperty("message", "Operação não autorizada");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -520,23 +590,30 @@ public class UserService {
             User targetUser = bancoUser.getUserByUsername(username);
             if (targetUser == null) {
                 res.addProperty("statusCode", 404);
-                res.addProperty("message", "Usuário não encontrado!");
+                res.addProperty("message", "Usuário não encontrado");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (vagaDAO.hasParkedVehicleForUser(username)) {
+                res.addProperty("statusCode", 409);
+                res.addProperty("message", "Não é permitido excluir usuário com veículo estacionado em uma vaga.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             bancoUser.deleteUser(username);
             Session.deleteUser(username);
-            new VagaService().loadAllVagas();
             new VehicleService().loadAllVehicles();
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Usuário deletado com sucesso");
+            res.add("data", JsonNull.INSTANCE);
             return res;
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (IllegalArgumentException e) {
@@ -546,7 +623,7 @@ public class UserService {
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao deletar usuário: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
@@ -619,6 +696,7 @@ public class UserService {
     }
 
     public void getAll() {
+        ensureDefaultAdmin();
         SessionService session = new SessionService();
         getAllUsers();
         getAllSessionUsers();
@@ -637,42 +715,24 @@ public class UserService {
         }
     }
 
-    private void isValidTokenByUsername(String token, String usernameRequested) throws IllegalArgumentException {
-        String username = Session.findByToken(token);
-        if (username != null) {
-            if (!username.equals(usernameRequested)) throw new IllegalArgumentException("Token não corresponde ao usuário solicitado!");
-        } else {
-            throw new IllegalArgumentException("Token inválido!");
-        }
-    }
-
-    private boolean registerValidation(String name, String password, String username) {
-        boolean isNameValid = validadorNome(name);
-        boolean isUsernameValid = validadorUsername(username);
-        boolean isPasswordValid = validadorSenha(password);
-
-        // Só retorna true se todas as três validações forem verdadeiras
-        return isNameValid && isUsernameValid && isPasswordValid;
-    }
-
     private boolean validadorSenha(String password) throws IllegalArgumentException, PatternSyntaxException {
-        if (password == null) throw new IllegalArgumentException("Senha não pode ser nula!");
+        if (password == null) return false;
 
         String regex = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[#.*&%$@!()\\-_=+])[A-Za-z0-9#.*&%$@!()\\-_=+]{8,20}$";
-        return password.trim().matches(regex);
+        return password.matches(regex);
     }
 
     private boolean validadorNome(String name) throws IllegalArgumentException, PatternSyntaxException {
-        if (name == null) throw new IllegalArgumentException("Nome não pode ser nulo!");
+        if (name == null || name.trim().isEmpty() || name.length() > 60) return false;
 
         String regex = "^[A-Za-zÀ-ÿ ]{1,60}$";
-        return name.trim().matches(regex);
+        return name.matches(regex);
     }
 
     private boolean validadorUsername(String username) throws IllegalArgumentException, PatternSyntaxException {
-        if (username == null) throw new IllegalArgumentException("Username não pode ser nulo!");
+        if (username == null) return false;
 
         String regex = "^[a-z0-9._]{3,20}$";
-        return username.trim().matches(regex);
+        return username.matches(regex);
     }
 }

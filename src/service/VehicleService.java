@@ -8,18 +8,21 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 
 import dao.UserDAO;
+import dao.VagaDAO;
 import dao.VehicleDAO;
 import entities.Session;
 import entities.User;
+import entities.Vaga;
 import entities.Vehicle;
 
 public class VehicleService {
 
     private final VehicleDAO vehicleDAO = new VehicleDAO();
+    private final VagaDAO vagaDAO = new VagaDAO();
     private final UserDAO userDAO = new UserDAO();
     private final UserService userService = new UserService();
 
-    public JsonObject createVehicle(JsonObject req) {
+    public synchronized JsonObject createVehicle(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -30,8 +33,39 @@ public class VehicleService {
             }
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token") || !hasNonBlankString(dataObj, "brand")
-                    || !hasNonBlankString(dataObj, "model") || !hasNonBlankString(dataObj, "type")
+            if (!hasNonBlankString(dataObj, "token")) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            String token = dataObj.get("token").getAsString().trim();
+            User loggedUser = userService.getAuthenticatedUser(token);
+            if (loggedUser == null) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            boolean isServerGuiAdmin = Session.SERVER_ADMIN_TOKEN.equals(token);
+            if (!isServerGuiAdmin) {
+                if (!"user".equalsIgnoreCase(loggedUser.getRole())) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada. Apenas usuários comuns podem cadastrar veículos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+                if (dataObj.has("username") || dataObj.has("ownerUsername")) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+            }
+
+            if (!hasNonBlankString(dataObj, "brand") || !hasNonBlankString(dataObj, "type")
                     || !hasNonBlankString(dataObj, "licensePlate")) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
@@ -39,29 +73,30 @@ public class VehicleService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
             String brand = dataObj.get("brand").getAsString().trim();
-            String model = dataObj.get("model").getAsString().trim();
-            String type = dataObj.get("type").getAsString().trim().toLowerCase();
+            String type = dataObj.get("type").getAsString().trim();
             String licensePlate = dataObj.get("licensePlate").getAsString().trim();
 
-            if (!isValidType(type)) {
+            String model = null;
+            if (dataObj.has("model") && !dataObj.get("model").isJsonNull()) {
+                model = dataObj.get("model").getAsString().trim();
+                if (model.length() > 20) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+            }
+
+            if (!isValidBrand(brand) || !isValidType(type) || !isValidLicensePlate(licensePlate)) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            User loggedUser = userService.getAuthenticatedUser(token);
-            if (loggedUser == null) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
             String targetUsername = loggedUser.getUsername();
-            if ("admin".equalsIgnoreCase(loggedUser.getRole()) && hasNonBlankString(dataObj, "username")) {
+            if (isServerGuiAdmin && hasNonBlankString(dataObj, "username")) {
                 targetUsername = dataObj.get("username").getAsString().trim();
                 User ownerUser = userDAO.getUserByUsername(targetUsername);
                 if (ownerUser == null) {
@@ -97,7 +132,7 @@ public class VehicleService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
@@ -119,18 +154,25 @@ public class VehicleService {
             }
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token")) {
+            if (!hasNonBlankString(dataObj, "token") || dataObj.has("username") || dataObj.has("ownerUsername")) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (!"user".equalsIgnoreCase(loggedUser.getRole())) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Operação não autorizada. Apenas usuários comuns podem consultar veículos próprios.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -141,7 +183,11 @@ public class VehicleService {
             for (Vehicle v : vehicles) {
                 JsonObject obj = new JsonObject();
                 obj.addProperty("brand", v.getBrand());
-                obj.addProperty("model", v.getModel());
+                if (v.getModel() == null) {
+                    obj.add("model", JsonNull.INSTANCE);
+                } else {
+                    obj.addProperty("model", v.getModel());
+                }
                 obj.addProperty("type", v.getType());
                 obj.addProperty("licensePlate", v.getLicensePlate());
                 dataArray.add(obj);
@@ -154,7 +200,7 @@ public class VehicleService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
@@ -183,36 +229,34 @@ public class VehicleService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String licensePlate = dataObj.get("licensePlate").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             Vehicle vehicle = vehicleDAO.getVehicleByLicensePlate(licensePlate);
-            if (vehicle == null) {
+            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
+
+            if (vehicle == null || (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername()))) {
                 res.addProperty("statusCode", 404);
                 res.addProperty("message", "Veículo não encontrado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
-            if (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername())) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
             JsonObject vehicleData = new JsonObject();
             vehicleData.addProperty("brand", vehicle.getBrand());
-            vehicleData.addProperty("model", vehicle.getModel());
+            if (vehicle.getModel() == null) {
+                vehicleData.add("model", JsonNull.INSTANCE);
+            } else {
+                vehicleData.addProperty("model", vehicle.getModel());
+            }
             vehicleData.addProperty("type", vehicle.getType());
             vehicleData.addProperty("licensePlate", vehicle.getLicensePlate());
 
@@ -223,7 +267,7 @@ public class VehicleService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
@@ -234,7 +278,7 @@ public class VehicleService {
         }
     }
 
-    public JsonObject updateVehicle(JsonObject req) {
+    public synchronized JsonObject updateVehicle(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -252,65 +296,103 @@ public class VehicleService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String licensePlate = dataObj.get("licensePlate").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
+            boolean isServerGuiAdmin = Session.SERVER_ADMIN_TOKEN.equals(token);
+            if (!isServerGuiAdmin) {
+                if (!"user".equalsIgnoreCase(loggedUser.getRole())) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada. Apenas usuários comuns podem atualizar veículos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+                if (dataObj.has("username") || dataObj.has("ownerUsername")) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+            }
+
             Vehicle vehicle = vehicleDAO.getVehicleByLicensePlate(licensePlate);
-            if (vehicle == null) {
+            if (vehicle == null || (!isServerGuiAdmin && !vehicle.getUsername().equals(loggedUser.getUsername()))) {
                 res.addProperty("statusCode", 404);
                 res.addProperty("message", "Veículo não encontrado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
-            if (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername())) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
-            if (dataObj.has("brand") && !dataObj.get("brand").isJsonNull()) {
-                String brand = dataObj.get("brand").getAsString().trim();
-                if (brand.isEmpty()) {
+            String newBrand = vehicle.getBrand();
+            if (dataObj.has("brand")) {
+                if (dataObj.get("brand").isJsonNull()) {
                     res.addProperty("statusCode", 400);
                     res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                vehicle.setBrand(brand);
-            }
-
-            if (dataObj.has("model") && !dataObj.get("model").isJsonNull()) {
-                String model = dataObj.get("model").getAsString().trim();
-                if (model.isEmpty()) {
+                newBrand = dataObj.get("brand").getAsString().trim();
+                if (!isValidBrand(newBrand)) {
                     res.addProperty("statusCode", 400);
                     res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                vehicle.setModel(model);
             }
 
-            if (dataObj.has("type") && !dataObj.get("type").isJsonNull()) {
-                String type = dataObj.get("type").getAsString().trim().toLowerCase();
-                if (!isValidType(type)) {
+            String newModel = vehicle.getModel();
+            if (dataObj.has("model")) {
+                if (dataObj.get("model").isJsonNull()) {
+                    newModel = null;
+                } else {
+                    newModel = dataObj.get("model").getAsString().trim();
+                    if (newModel.length() > 20) {
+                        res.addProperty("statusCode", 400);
+                        res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                        res.add("data", JsonNull.INSTANCE);
+                        return res;
+                    }
+                }
+            }
+
+            String newType = vehicle.getType();
+            if (dataObj.has("type")) {
+                if (dataObj.get("type").isJsonNull()) {
                     res.addProperty("statusCode", 400);
                     res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                vehicle.setType(type);
+                newType = dataObj.get("type").getAsString().trim();
+                if (!isValidType(newType)) {
+                    res.addProperty("statusCode", 400);
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+
+                if (!newType.equalsIgnoreCase(vehicle.getType())) {
+                    Vaga associatedSpot = vagaDAO.getVagaByLicensePlate(licensePlate);
+                    if (associatedSpot != null) {
+                        res.addProperty("statusCode", 409);
+                        res.addProperty("message", "Veículo associado a uma vaga. Libere a vaga antes desta operação.");
+                        res.add("data", JsonNull.INSTANCE);
+                        return res;
+                    }
+                }
             }
+
+            vehicle.setBrand(newBrand);
+            vehicle.setModel(newModel);
+            vehicle.setType(newType);
 
             vehicleDAO.updateVehicle(vehicle);
             loadAllVehicles();
@@ -322,7 +404,7 @@ public class VehicleService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
@@ -333,7 +415,7 @@ public class VehicleService {
         }
     }
 
-    public JsonObject deleteVehicle(JsonObject req) {
+    public synchronized JsonObject deleteVehicle(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -351,36 +433,37 @@ public class VehicleService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String licensePlate = dataObj.get("licensePlate").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             Vehicle vehicle = vehicleDAO.getVehicleByLicensePlate(licensePlate);
-            if (vehicle == null) {
+            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
+
+            if (vehicle == null || (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername()))) {
                 res.addProperty("statusCode", 404);
                 res.addProperty("message", "Veículo não encontrado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
-            if (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername())) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+            Vaga associatedSpot = vagaDAO.getVagaByLicensePlate(licensePlate);
+            if (associatedSpot != null) {
+                res.addProperty("statusCode", 409);
+                res.addProperty("message", "Veículo associado a uma vaga. Libere a vaga antes desta operação.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             vehicleDAO.deleteVehicle(licensePlate);
             loadAllVehicles();
-            new VagaService().loadAllVagas();
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Veículo removido com sucesso");
@@ -389,7 +472,7 @@ public class VehicleService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
@@ -413,6 +496,14 @@ public class VehicleService {
 
     private boolean hasNonBlankString(JsonObject obj, String key) {
         return obj != null && obj.has(key) && !obj.get(key).isJsonNull() && !obj.get(key).getAsString().trim().isEmpty();
+    }
+
+    private boolean isValidLicensePlate(String plate) {
+        return plate != null && plate.length() == 7;
+    }
+
+    private boolean isValidBrand(String brand) {
+        return brand != null && brand.length() >= 1 && brand.length() <= 20;
     }
 
     private boolean isValidType(String type) {

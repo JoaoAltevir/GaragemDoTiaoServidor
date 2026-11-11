@@ -20,7 +20,7 @@ public class VagaService {
     private final VehicleDAO vehicleDAO = new VehicleDAO();
     private final UserService userService = new UserService();
 
-    public JsonObject createVaga(JsonObject req) {
+    public synchronized JsonObject createVaga(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -31,38 +31,56 @@ public class VagaService {
             }
 
             JsonObject dataObj = req.get("data").getAsJsonObject();
-            if (!hasNonBlankString(dataObj, "token") || !hasNonBlankString(dataObj, "spotName")
-                    || !hasNonBlankString(dataObj, "type") || !dataObj.has("floor") || dataObj.get("floor").isJsonNull()) {
+            if (!hasNonBlankString(dataObj, "token")) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
+            User loggedUser = userService.getAuthenticatedUser(token);
+            if (loggedUser == null) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (!"admin".equalsIgnoreCase(loggedUser.getRole())) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Operação não autorizada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (!hasNonBlankString(dataObj, "spotName") || !hasNonBlankString(dataObj, "type")
+                    || !dataObj.has("floor") || dataObj.get("floor").isJsonNull()) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
             String spotName = dataObj.get("spotName").getAsString().trim();
-            String type = dataObj.get("type").getAsString().trim().toLowerCase();
+            String type = dataObj.get("type").getAsString().trim();
+
+            if (!isValidSpotName(spotName) || !isValidType(type)) {
+                res.addProperty("statusCode", 400);
+                res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
             int floor;
             try {
+                if (!dataObj.get("floor").isJsonPrimitive() || !dataObj.get("floor").getAsJsonPrimitive().isNumber()) {
+                    throw new IllegalArgumentException();
+                }
                 floor = dataObj.get("floor").getAsInt();
             } catch (Exception e) {
                 res.addProperty("statusCode", 400);
                 res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
-            User loggedUser = userService.getAuthenticatedUser(token);
-            if (loggedUser == null || !"admin".equalsIgnoreCase(loggedUser.getRole())) {
-                res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
-                res.add("data", JsonNull.INSTANCE);
-                return res;
-            }
-
-            if (!isValidType(type)) {
-                res.addProperty("statusCode", 400);
-                res.addProperty("message", "Tipo de vaga inválido. Use 'eletrico' ou 'combustao'.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -92,12 +110,12 @@ public class VagaService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao criar vaga: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
@@ -121,11 +139,11 @@ public class VagaService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -154,18 +172,18 @@ public class VagaService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao obter vagas: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject updateVaga(JsonObject req) {
+    public synchronized JsonObject updateVaga(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -183,13 +201,13 @@ public class VagaService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String spotName = dataObj.get("spotName").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -205,20 +223,20 @@ public class VagaService {
             boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
 
             if (dataObj.has("newSpotName") && !dataObj.get("newSpotName").isJsonNull()) {
+                if (!isAdmin) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
                 String newSpotName = dataObj.get("newSpotName").getAsString().trim();
-                if (newSpotName.isEmpty()) {
+                if (!isValidSpotName(newSpotName)) {
                     res.addProperty("statusCode", 400);
                     res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
                 if (!newSpotName.equals(spotName)) {
-                    if (!isAdmin) {
-                        res.addProperty("statusCode", 401);
-                        res.addProperty("message", "Não autorizado a renomear vaga.");
-                        res.add("data", JsonNull.INSTANCE);
-                        return res;
-                    }
                     Vaga conflict = vagaDAO.getVagaBySpotName(newSpotName);
                     if (conflict != null) {
                         res.addProperty("statusCode", 409);
@@ -231,8 +249,17 @@ public class VagaService {
             }
 
             if (dataObj.has("floor") && !dataObj.get("floor").isJsonNull()) {
+                if (!isAdmin) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
                 int newFloor;
                 try {
+                    if (!dataObj.get("floor").isJsonPrimitive() || !dataObj.get("floor").getAsJsonPrimitive().isNumber()) {
+                        throw new IllegalArgumentException();
+                    }
                     newFloor = dataObj.get("floor").getAsInt();
                 } catch (Exception e) {
                     res.addProperty("statusCode", 400);
@@ -240,29 +267,21 @@ public class VagaService {
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                if (newFloor != vaga.getFloor()) {
-                    if (!isAdmin) {
-                        res.addProperty("statusCode", 401);
-                        res.addProperty("message", "Não autorizado a alterar o andar da vaga.");
-                        res.add("data", JsonNull.INSTANCE);
-                        return res;
-                    }
-                    vaga.setFloor(newFloor);
-                }
+                vaga.setFloor(newFloor);
             }
 
             if (dataObj.has("type") && !dataObj.get("type").isJsonNull()) {
-                String newType = dataObj.get("type").getAsString().trim().toLowerCase();
+                String newType = dataObj.get("type").getAsString().trim();
                 if (!isValidType(newType)) {
                     res.addProperty("statusCode", 400);
-                    res.addProperty("message", "Tipo de vaga inválido.");
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                if (!newType.equalsIgnoreCase(vaga.getType())) {
+                if (!newType.equals(vaga.getType())) {
                     if (!isAdmin) {
                         res.addProperty("statusCode", 401);
-                        res.addProperty("message", "Não autorizado a alterar o tipo da vaga.");
+                        res.addProperty("message", "Operação não autorizada.");
                         res.add("data", JsonNull.INSTANCE);
                         return res;
                     }
@@ -270,56 +289,80 @@ public class VagaService {
                 }
             }
 
+            boolean explicitNullPlate = dataObj.has("licensePlate") && dataObj.get("licensePlate").isJsonNull();
+            boolean hasStatusField = dataObj.has("status") && !dataObj.get("status").isJsonNull();
+
             String targetStatus = vaga.getStatus();
-            if (dataObj.has("status") && !dataObj.get("status").isJsonNull()) {
-                targetStatus = dataObj.get("status").getAsString().trim().toLowerCase();
+            if (hasStatusField) {
+                targetStatus = dataObj.get("status").getAsString().trim();
                 if (!isValidStatus(targetStatus)) {
                     res.addProperty("statusCode", 400);
-                    res.addProperty("message", "Status da vaga inválido.");
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
-                if ("fora_de_servico".equals(targetStatus) && !isAdmin) {
-                    res.addProperty("statusCode", 401);
-                    res.addProperty("message", "Não autorizado.");
-                    res.add("data", JsonNull.INSTANCE);
-                    return res;
-                }
+            } else if (explicitNullPlate) {
+                targetStatus = "disponivel";
+            } else if (hasNonBlankString(dataObj, "licensePlate")) {
+                targetStatus = "ocupada";
             }
 
-            if ("disponivel".equals(targetStatus) || "fora_de_servico".equals(targetStatus)) {
+            if ("fora_de_servico".equals(targetStatus)) {
+                if (!isAdmin) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+                if (!"disponivel".equalsIgnoreCase(vaga.getStatus()) && !"fora_de_servico".equalsIgnoreCase(vaga.getStatus())) {
+                    res.addProperty("statusCode", 409);
+                    res.addProperty("message", "A vaga só pode ser alterada para fora de serviço se estiver disponível.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+                vaga.setStatus("fora_de_servico");
+                vaga.setLicensePlate(null);
+            } else if ("disponivel".equals(targetStatus)) {
                 if (!isAdmin && "ocupada".equalsIgnoreCase(vaga.getStatus()) && vaga.getLicensePlate() != null) {
                     Vehicle currentVehicle = vehicleDAO.getVehicleByLicensePlate(vaga.getLicensePlate());
-                    if (currentVehicle != null && !currentVehicle.getUsername().equals(loggedUser.getUsername())) {
+                    if (currentVehicle == null || !currentVehicle.getUsername().equals(loggedUser.getUsername())) {
                         res.addProperty("statusCode", 401);
-                        res.addProperty("message", "Não autorizado a liberar vaga de outro usuário.");
+                        res.addProperty("message", "Operação não autorizada.");
                         res.add("data", JsonNull.INSTANCE);
                         return res;
                     }
                 }
-                vaga.setStatus(targetStatus);
+                if (!isAdmin && "fora_de_servico".equalsIgnoreCase(vaga.getStatus())) {
+                    res.addProperty("statusCode", 401);
+                    res.addProperty("message", "Operação não autorizada.");
+                    res.add("data", JsonNull.INSTANCE);
+                    return res;
+                }
+                vaga.setStatus("disponivel");
                 vaga.setLicensePlate(null);
             } else if ("ocupada".equals(targetStatus)) {
                 String plateToUse = vaga.getLicensePlate();
-                if (dataObj.has("licensePlate") && !dataObj.get("licensePlate").isJsonNull()) {
+                if (hasNonBlankString(dataObj, "licensePlate")) {
                     plateToUse = dataObj.get("licensePlate").getAsString().trim();
+                } else if (explicitNullPlate) {
+                    plateToUse = null;
                 }
 
                 if (plateToUse == null || plateToUse.isEmpty()) {
                     res.addProperty("statusCode", 400);
-                    res.addProperty("message", "Placa do veículo é obrigatória para ocupar a vaga.");
+                    res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
 
-                if (!isAdmin && "fora_de_servico".equalsIgnoreCase(vaga.getStatus())) {
-                    res.addProperty("statusCode", 400);
+                if ("fora_de_servico".equalsIgnoreCase(vaga.getStatus())) {
+                    res.addProperty("statusCode", 409);
                     res.addProperty("message", "Vaga fora de serviço.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
 
-                if (!isAdmin && "ocupada".equalsIgnoreCase(vaga.getStatus())
+                if ("ocupada".equalsIgnoreCase(vaga.getStatus())
                         && vaga.getLicensePlate() != null && !vaga.getLicensePlate().equalsIgnoreCase(plateToUse)) {
                     res.addProperty("statusCode", 409);
                     res.addProperty("message", "Vaga já está ocupada.");
@@ -336,8 +379,8 @@ public class VagaService {
                 }
 
                 if (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername())) {
-                    res.addProperty("statusCode", 401);
-                    res.addProperty("message", "Não autorizado: o veículo não pertence ao usuário.");
+                    res.addProperty("statusCode", 404);
+                    res.addProperty("message", "Veículo não encontrado.");
                     res.add("data", JsonNull.INSTANCE);
                     return res;
                 }
@@ -366,22 +409,23 @@ public class VagaService {
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Vaga atualizada com sucesso");
+            res.add("data", JsonNull.INSTANCE);
             return res;
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao atualizar vaga: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
     }
 
-    public JsonObject deleteVaga(JsonObject req) {
+    public synchronized JsonObject deleteVaga(JsonObject req) {
         JsonObject res = new JsonObject();
         try {
             if (req == null || !req.has("data") || req.get("data").isJsonNull() || !req.get("data").isJsonObject()) {
@@ -399,13 +443,20 @@ public class VagaService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String spotName = dataObj.get("spotName").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
-            if (loggedUser == null || !"admin".equalsIgnoreCase(loggedUser.getRole())) {
+            if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            if (!"admin".equalsIgnoreCase(loggedUser.getRole())) {
+                res.addProperty("statusCode", 401);
+                res.addProperty("message", "Operação não autorizada.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -418,21 +469,29 @@ public class VagaService {
                 return res;
             }
 
+            if ("ocupada".equalsIgnoreCase(vaga.getStatus()) || vaga.getLicensePlate() != null) {
+                res.addProperty("statusCode", 409);
+                res.addProperty("message", "Vagas ocupadas não podem ser excluídas.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
             vagaDAO.deleteVaga(spotName);
             loadAllVagas();
 
             res.addProperty("statusCode", 200);
             res.addProperty("message", "Vaga removida com sucesso");
+            res.add("data", JsonNull.INSTANCE);
             return res;
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao remover vaga: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
@@ -456,21 +515,30 @@ public class VagaService {
                 return res;
             }
 
-            String token = dataObj.get("token").getAsString();
+            String token = dataObj.get("token").getAsString().trim();
             String licensePlate = dataObj.get("licensePlate").getAsString().trim();
 
             User loggedUser = userService.getAuthenticatedUser(token);
             if (loggedUser == null) {
                 res.addProperty("statusCode", 401);
-                res.addProperty("message", "Não autorizado.");
+                res.addProperty("message", "Sessão expirada ou encerrada.");
+                res.add("data", JsonNull.INSTANCE);
+                return res;
+            }
+
+            boolean isAdmin = "admin".equalsIgnoreCase(loggedUser.getRole());
+            Vehicle vehicle = vehicleDAO.getVehicleByLicensePlate(licensePlate);
+            if (vehicle == null || (!isAdmin && !vehicle.getUsername().equals(loggedUser.getUsername()))) {
+                res.addProperty("statusCode", 404);
+                res.addProperty("message", "Veículo não encontrado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
 
             Vaga vaga = vagaDAO.getVagaByLicensePlate(licensePlate);
-            if (vaga == null) {
+            if (vaga == null || !"ocupada".equalsIgnoreCase(vaga.getStatus())) {
                 res.addProperty("statusCode", 404);
-                res.addProperty("message", "Veículo não localizado em nenhuma vaga.");
+                res.addProperty("message", "Veículo não encontrado.");
                 res.add("data", JsonNull.INSTANCE);
                 return res;
             }
@@ -487,12 +555,12 @@ public class VagaService {
 
         } catch (SQLException e) {
             res.addProperty("statusCode", 500);
-            res.addProperty("message", "Erro de banco: " + e.getMessage());
+            res.addProperty("message", "Erro interno no servidor.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         } catch (Exception e) {
             res.addProperty("statusCode", 400);
-            res.addProperty("message", "Erro ao localizar veículo: " + e.getMessage());
+            res.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             res.add("data", JsonNull.INSTANCE);
             return res;
         }
@@ -511,6 +579,10 @@ public class VagaService {
 
     private boolean hasNonBlankString(JsonObject obj, String key) {
         return obj != null && obj.has(key) && !obj.get(key).isJsonNull() && !obj.get(key).getAsString().trim().isEmpty();
+    }
+
+    private boolean isValidSpotName(String spotName) {
+        return spotName != null && spotName.length() >= 1 && spotName.length() <= 4;
     }
 
     private boolean isValidType(String type) {

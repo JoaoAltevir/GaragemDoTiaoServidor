@@ -49,6 +49,13 @@ CREATE TABLE `usuario` (
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Conta inicial admin padrão (também garantida via código na inicialização do servidor)
+--
+
+INSERT IGNORE INTO `usuario` (`username`, `name`, `password`, `role`) VALUES
+('admin', 'admin', 'Admin123!', 'admin');
+
 -- --------------------------------------------------------
 
 --
@@ -56,9 +63,9 @@ CREATE TABLE `usuario` (
 --
 
 CREATE TABLE `veiculo` (
-  `license_plate` varchar(20) NOT NULL,
-  `brand` varchar(50) NOT NULL,
-  `model` varchar(50) NOT NULL,
+  `license_plate` varchar(7) NOT NULL,
+  `brand` varchar(20) NOT NULL,
+  `model` varchar(20) DEFAULT NULL,
   `type` enum('eletrico','combustao') NOT NULL,
   `username` varchar(20) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -72,11 +79,11 @@ CREATE TABLE `veiculo` (
 --
 
 CREATE TABLE `vaga` (
-  `spot_name` varchar(20) NOT NULL,
+  `spot_name` varchar(4) NOT NULL,
   `floor` int(11) NOT NULL,
   `type` enum('eletrico','combustao') NOT NULL,
   `status` enum('disponivel','fora_de_servico','ocupada') NOT NULL DEFAULT 'disponivel',
-  `license_plate` varchar(20) DEFAULT NULL,
+  `license_plate` varchar(7) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -132,7 +139,7 @@ ALTER TABLE `veiculo`
 -- Restrições para tabelas `vaga`
 --
 ALTER TABLE `vaga`
-  ADD CONSTRAINT `fk_license_plate_vaga` FOREIGN KEY (`license_plate`) REFERENCES `veiculo` (`license_plate`) ON DELETE SET NULL ON UPDATE CASCADE;
+  ADD CONSTRAINT `fk_license_plate_vaga` FOREIGN KEY (`license_plate`) REFERENCES `veiculo` (`license_plate`) ON DELETE RESTRICT ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

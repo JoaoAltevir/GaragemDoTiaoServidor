@@ -34,6 +34,7 @@ public class ClientService extends Thread {
     public void run() {
         Gson gson = new Gson();
         JsonObject response = new JsonObject();
+        String clientIp = socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "desconhecido";
 
         try {
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -43,27 +44,27 @@ public class ClientService extends Thread {
 
             if (mensagemJson == null || mensagemJson.isEmpty()) {
                 response.addProperty("statusCode", 400);
-                response.addProperty("message", "Requisição não pode ser nula!");
+                response.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 response.add("data", JsonNull.INSTANCE);
                 saida.println(response.toString());
-                socket.close();
+                System.out.println("[Servidor] Resposta enviada: " + response.toString());
                 return;
             }
 
             JsonObject requisicao = gson.fromJson(mensagemJson, JsonObject.class);
 
-            System.out.println("Requisição recebida: " + requisicao);
+            System.out.println("[Servidor] Requisicao recebida: " + requisicao);
 
             if (requisicao == null || !requisicao.has("method") || requisicao.get("method").isJsonNull()) {
                 response.addProperty("statusCode", 400);
                 response.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                 response.add("data", JsonNull.INSTANCE);
                 saida.println(response.toString());
-                socket.close();
+                System.out.println("[Servidor] Resposta enviada: " + response.toString());
                 return;
             }
 
-            String method = requisicao.get("method").getAsString().trim().toLowerCase();
+            String method = requisicao.get("method").getAsString().trim();
 
             List<User> allUsers = sessionService.getAllUsers();
 
@@ -74,7 +75,7 @@ public class ClientService extends Thread {
                     if (homeServer != null) homeServer.refreshUserTable(allUsers);
                     break;
                 case "login":
-                    response = userService.login(requisicao, socket.getInetAddress().getHostAddress());
+                    response = userService.login(requisicao, clientIp);
                     allUsers = sessionService.getAllUsers();
                     if (homeServer != null) homeServer.refreshUserTable(allUsers);
                     break;
@@ -144,33 +145,37 @@ public class ClientService extends Thread {
                     break;
                 default:
                     response.addProperty("statusCode", 400);
-                    response.addProperty("message", "Método inválido ou não suportado.");
+                    response.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
                     response.add("data", JsonNull.INSTANCE);
                     break;
             }
 
             if (response != null) {
+                if (!response.has("data")) {
+                    response.add("data", JsonNull.INSTANCE);
+                }
                 saida.println(response.toString());
-                System.out.println("Response enviada: " + response.toString());
-                socket.close();
+                System.out.println("[Servidor] Resposta enviada: " + response.toString());
             }
 
         } catch (Exception e) {
-            response.addProperty("statusCode", 500);
-            response.addProperty("message", "Erro ao processar requisição: " + e.getMessage());
+            response = new JsonObject();
+            response.addProperty("statusCode", 400);
+            response.addProperty("message", "Campos obrigatórios ausentes ou inválidos.");
             response.add("data", JsonNull.INSTANCE);
-            saida.println(response.toString());
-            System.out.println("Erro ao processar requisição: " + e.getMessage());
+            if (saida != null) {
+                saida.println(response.toString());
+            }
+            System.out.println("[Servidor] Resposta enviada: " + response.toString());
 
         } finally {
             try {
-                socket.close();
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+                System.out.println("Cliente desconectou: /" + clientIp);
             } catch (IOException e) {
-                response.addProperty("statusCode", 500);
-                response.addProperty("message", "Erro ao processar requisição: " + e.getMessage());
-                response.add("data", JsonNull.INSTANCE);
                 System.out.println("Erro ao fechar socket");
-                saida.println(response.toString());
             }
         }
     }

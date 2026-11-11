@@ -3,64 +3,58 @@ package service;
 import java.io.*;
 import java.net.*;
 
-
 import gui.HomeWindow;
 
-public class ServerService{
-    
+public class ServerService {
+
     private int porta;
     private boolean rodando;
     private ServerSocket serverSocket;
 
     private HomeWindow homeServer;
-    
-    
-    public ServerService (int porta, HomeWindow home) {
+
+    public ServerService(int porta, HomeWindow home) {
         this.porta = porta;
         this.homeServer = home;
-
     }
 
-    public void iniciarServidor(){
+    public void iniciarServidor() {
         if (rodando) return;
 
         this.rodando = true;
+        new UserService().ensureDefaultAdmin();
 
         new Thread(() -> {
             try {
                 this.serverSocket = new ServerSocket(porta);
-                System.out.println("Servidor iniciado na porta: " + porta);
+                System.out.println("Servidor iniciado na porta " + porta);
 
-                while(rodando){
-                	
-                	System.out.println("Aguardando conexão...");
+                while (rodando) {
                     Socket socketClient = serverSocket.accept();
-                    System.out.println("Novo client conectado" + socketClient.getInetAddress().getHostAddress());
+                    System.out.println("Cliente conectado: /" + socketClient.getInetAddress().getHostAddress());
 
                     ClientService clientThread = new ClientService(socketClient, this.homeServer);
                     clientThread.start();
                 }
             } catch (IOException e) {
-                if(rodando){
+                if (rodando) {
                     System.err.println("Erro no servidor: " + e.getMessage());
-                }else{
+                } else {
                     System.out.println("Servidor encerrado");
                 }
             }
-        }).start();;
+        }).start();
     }
 
-    public void fecharServidor(){
-
+    public void fecharServidor() {
         this.rodando = false;
         try {
-            if(serverSocket != null && !serverSocket.isClosed()) {
+            if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
 }

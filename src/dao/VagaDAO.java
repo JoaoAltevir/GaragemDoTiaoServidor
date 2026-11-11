@@ -76,7 +76,7 @@ public class VagaDAO {
     }
 
     public Vaga getVagaByLicensePlate(String licensePlate) throws SQLException {
-        String sql = "SELECT * FROM vaga WHERE license_plate = ? AND status = 'ocupada'";
+        String sql = "SELECT * FROM vaga WHERE license_plate = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -87,6 +87,26 @@ public class VagaDAO {
                     return mapResultSetToVaga(rs);
                 }
                 return null;
+            }
+        } catch (SQLException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new SQLException("Erro ao conectar ao banco de dados", e);
+        }
+    }
+
+    public boolean hasParkedVehicleForUser(String username) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM vaga v INNER JOIN veiculo ve ON v.license_plate = ve.license_plate WHERE ve.username = ?";
+        try (
+            Connection conn = BancoDados.conectar();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+        ) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+                return false;
             }
         } catch (SQLException e) {
             throw e;

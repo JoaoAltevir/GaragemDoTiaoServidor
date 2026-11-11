@@ -1,7 +1,6 @@
 package dao;
 
 import java.sql.*;
-import java.util.UUID;
 import entities.User;
 import entities.SessionUser;
 
@@ -11,128 +10,111 @@ import java.util.ArrayList;
 
 public class UserDAO {
 
-    public void register(User user) throws SQLException{
+    public void register(User user) throws SQLException {
         String sql = "INSERT INTO usuario (username, name, password, role) VALUES (?, ?, ?, ?)";
-        try(
+        try (
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
-         ){
+        ) {
             stmt.setString(1, user.getUsername());
             stmt.setString(2, user.getName());
             stmt.setString(3, user.getPassword());
             stmt.setString(4, user.getRole());
             stmt.executeUpdate();
 
-        }catch(SQLException e){
+        } catch (SQLException e) {
             throw e;
-        }catch(IOException e){
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar ao banco de dados", e);
         }
     }
 
-
-    public User getUserByUsername(String username) throws SQLException{
-        
+    public User getUserByUsername(String username) throws SQLException {
         String sql = "SELECT * FROM usuario WHERE username = ?";
-        try(Connection conn = BancoDados.conectar();
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        
-         ){
-        
+        try (
+            Connection conn = BancoDados.conectar();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+        ) {
             stmt.setString(1, username);
-            ResultSet rs = stmt.executeQuery();
-            User user = new User();
-
-            if(rs.next()){
-                
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                user.setName(rs.getString("name"));
-                user.setRole(rs.getString("role"));
-                user.setCreatedAt(rs.getTimestamp("created_at"));
-                user.setUpdatedAt(rs.getTimestamp("updated_at"));
-
-                return user;
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    User user = new User();
+                    user.setUsername(rs.getString("username"));
+                    user.setPassword(rs.getString("password"));
+                    user.setName(rs.getString("name"));
+                    user.setRole(rs.getString("role"));
+                    user.setCreatedAt(rs.getTimestamp("created_at"));
+                    user.setUpdatedAt(rs.getTimestamp("updated_at"));
+                    return user;
+                }
+                return null;
             }
-
-            return null;
-
-        }catch(SQLException e){
+        } catch (SQLException e) {
             throw e;
-        }catch(IOException e){
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar ao banco de dados", e);
         }
     }
 
-    public void login(String username, String token, String ipAddress) throws SQLException{
-
+    public void login(String username, String token, String ipAddress) throws SQLException {
         String sql = "INSERT INTO sessao_usuario (username, token, ip_address) VALUES (?, ?, ?)";
-        try(Connection conn = BancoDados.conectar();
-        PreparedStatement stmt = conn.prepareStatement(sql);
-         ){
-        
+        try (
+            Connection conn = BancoDados.conectar();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+        ) {
             stmt.setString(1, username);
             stmt.setString(2, token);
             stmt.setString(3, ipAddress);
             stmt.executeUpdate();
 
-        }catch(SQLException e){
+        } catch (SQLException e) {
             throw e;
-        }catch(IOException e){
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar ao banco de dados", e);
         }
-
     }
 
-    public void logout (String token) throws SQLException{
-
+    public void logout(String token) throws SQLException {
         String sql = "DELETE FROM sessao_usuario WHERE token = ?";
-        try(Connection conn = BancoDados.conectar();
-        PreparedStatement stmt = conn.prepareStatement(sql);
-         ){
-    
+        try (
+            Connection conn = BancoDados.conectar();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+        ) {
             stmt.setString(1, token);
             stmt.executeUpdate();
 
-        }catch(SQLException e){
+        } catch (SQLException e) {
             throw e;
-        }catch(IOException e){
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar ao banco de dados", e);
         }
-
     }
 
     public int updateUserName(String username, String name) throws SQLException {
-        
-        String sql = "UPDATE usuario SET name = ?  WHERE username = ?";
+        String sql = "UPDATE usuario SET name = ? WHERE username = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
-        ){
-            
+        ) {
             st.setString(1, name);
             st.setString(2, username);
-
             return st.executeUpdate();
 
- 
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
             throw new SQLException("Erro ao conectar no banco", e);
         }
     }
 
     public void updateUserPassword(String username, String password) throws SQLException {
-
         String sql = "UPDATE usuario SET password = ? WHERE username = ?";
-
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
-        ){
-            
+        ) {
             st.setString(1, password);
             st.setString(2, username);
-
             st.executeUpdate();
 
         } catch (SQLException e) {
@@ -142,37 +124,37 @@ public class UserDAO {
         }
     }
 
-    public int deleteUser (String username) throws SQLException {
-        
-        String sqlVaga = "UPDATE vaga SET status = 'disponivel', license_plate = NULL WHERE license_plate IN (SELECT license_plate FROM veiculo WHERE username = ?)";
+    public int deleteUser(String username) throws SQLException {
         String sqlVeiculo = "DELETE FROM veiculo WHERE username = ?";
         String sqlSessao = "DELETE FROM sessao_usuario WHERE username = ?";
-        String sql = "DELETE FROM usuario WHERE username = ?";
-        try(
-            Connection conn = BancoDados.conectar();
-            PreparedStatement stmtSessao = conn.prepareStatement(sqlSessao);
-            PreparedStatement stmtUsuario = conn.prepareStatement(sql);
-        ){
-            try (PreparedStatement stmtVaga = conn.prepareStatement(sqlVaga);
-                 PreparedStatement stmtVeiculo = conn.prepareStatement(sqlVeiculo)) {
-                stmtVaga.setString(1, username);
-                stmtVaga.executeUpdate();
-
+        String sqlUsuario = "DELETE FROM usuario WHERE username = ?";
+        try (Connection conn = BancoDados.conectar()) {
+            conn.setAutoCommit(false);
+            try (
+                PreparedStatement stmtVeiculo = conn.prepareStatement(sqlVeiculo);
+                PreparedStatement stmtSessao = conn.prepareStatement(sqlSessao);
+                PreparedStatement stmtUsuario = conn.prepareStatement(sqlUsuario);
+            ) {
                 stmtVeiculo.setString(1, username);
                 stmtVeiculo.executeUpdate();
-            } catch (SQLException ignored) {
-                // Caso as tabelas de vaga/veiculo ainda nao existam no ambiente
+
+                stmtSessao.setString(1, username);
+                stmtSessao.executeUpdate();
+
+                stmtUsuario.setString(1, username);
+                int rows = stmtUsuario.executeUpdate();
+
+                conn.commit();
+                return rows;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
-            stmtSessao.setString(1, username);
-            stmtSessao.executeUpdate();
-
-            stmtUsuario.setString(1, username);
-            return stmtUsuario.executeUpdate();
-
-        }catch (SQLException e){
+        } catch (SQLException e) {
             throw e;
-        }catch (IOException e) {
+        } catch (IOException e) {
             throw new SQLException("Erro ao conectar no banco", e);
         }
     }
@@ -195,19 +177,16 @@ public class UserDAO {
         }
     }
 
-
-    public List<User> getAllUsers () throws SQLException{
-
+    public List<User> getAllUsers() throws SQLException {
         String sql = "SELECT * FROM usuario";
         List<User> users = new ArrayList<User>();
 
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement stmt = conn.prepareStatement(sql);
-        ){
-
             ResultSet rs = stmt.executeQuery();
-            while(rs.next()){
+        ) {
+            while (rs.next()) {
                 User u = new User();
                 u.setUsername(rs.getString("username"));
                 u.setName(rs.getString("name"));
@@ -218,7 +197,6 @@ public class UserDAO {
 
                 users.add(u);
             }
-
             return users;
 
         } catch (Exception e) {
@@ -227,27 +205,23 @@ public class UserDAO {
         }
     }
 
-    public List<SessionUser> getAllSessionUsers() throws SQLException{
+    public List<SessionUser> getAllSessionUsers() throws SQLException {
         String sql = "SELECT * FROM sessao_usuario";
         List<SessionUser> users = new ArrayList<SessionUser>();
 
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
-        ){
-
             ResultSet rs = st.executeQuery();
-            while(rs.next()){
-
+        ) {
+            while (rs.next()) {
                 SessionUser u = new SessionUser();
                 u.setUsername(rs.getString("username"));
                 u.setToken(rs.getString("token"));
                 u.setIpAddress(rs.getString("ip_address"));
 
                 users.add(u);
-            
             }
-
             return users;
 
         } catch (Exception e) {
@@ -256,15 +230,14 @@ public class UserDAO {
         }
     }
 
-    public String isPassword (String username) throws SQLException {
-
+    public String isPassword(String username) throws SQLException {
         String sql = "SELECT password FROM usuario WHERE username = ?";
         try (
             Connection conn = BancoDados.conectar();
             PreparedStatement st = conn.prepareStatement(sql);
         ) {
-        	st.setString(1, username);
-            
+            st.setString(1, username);
+
             try (ResultSet rs = st.executeQuery()) {
                 if (rs.next()) {
                     return rs.getString("password");
